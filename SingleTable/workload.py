@@ -125,4 +125,4 @@ if __name__ == "__main__":
     # insertOne()
     # searchAll()
     # searchByID(countTotal()-1)
-    multiThreadLoad(1000000)
+    # multiThreadLoad(1000000)
