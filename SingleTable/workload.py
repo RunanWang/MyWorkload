@@ -84,7 +84,7 @@ def countTotal():
         cursor.execute(sql)
         results = cursor.fetchall()
         total = results[0][0]
-        logger.info(total)
+        logger.debug(total)
     except Exception:
         logger.warn(Exception)
         conn.rollback()
@@ -99,7 +99,7 @@ def searchAll():
     try:
         cursor.execute(sql)
         results = cursor.fetchall()
-        logger.info(results)
+        logger.debug(results)
     except Exception:
         logger.warn(Exception)
         conn.rollback()
@@ -113,7 +113,7 @@ def searchByID(id):
     try:
         cursor.execute(sql)
         results = cursor.fetchall()
-        logger.info(results)
+        logger.debug(results)
     except Exception:
         logger.warn(Exception)
         conn.rollback()
@@ -127,7 +127,35 @@ def searchCountPerCity():
     try:
         cursor.execute(sql)
         results = cursor.fetchall()
-        logger.info(results)
+        logger.debug(results)
+    except Exception:
+        logger.warn(Exception)
+        conn.rollback()
+    conn.close()
+
+# 查字符串-like
+def searchF1():
+    conn = makeConnect()
+    cursor = conn.cursor()
+    sql = "select * from TEST where FIELD_01 LIKE '%A%'"
+    try:
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        logger.debug(results)
+    except Exception:
+        logger.warn(Exception)
+        conn.rollback()
+    conn.close()
+
+# 查字符串-distinct
+def searchF2():
+    conn = makeConnect()
+    cursor = conn.cursor()
+    sql = "select distinct FIELD_02 from TEST"
+    try:
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        logger.debug(results)
     except Exception:
         logger.warn(Exception)
         conn.rollback()
@@ -146,12 +174,14 @@ def multiThreadLoad(loadNum):
     for i in range(20):
         t = threading.Thread(target=loadData, args=(i,int(loadNum/20),))
         t.start()
+    logger.info("load finish!")
 
 
 if __name__ == "__main__":
     # initialization()
-    insertOne()
+    # insertOne()
     # searchAll()
-    # searchByID(countTotal()-1)
+    searchByID(countTotal()+1)
+    searchF1()
     # updateByID(countTotal()-1)
-    # multiThreadLoad(1000000)
+    # multiThreadLoad(1000)
