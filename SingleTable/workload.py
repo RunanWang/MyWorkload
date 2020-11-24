@@ -9,7 +9,7 @@ logger = logging.getLogger()
 
 # 数据库链接
 def makeConnect():
-    conn = pymysql.connect(host="182.92.196.182", port=36006, user="root", password="Sense1236", database="test", charset="utf8")
+    conn = pymysql.connect(host="127.0.0.1", port=36036, user="root", password="1", database="test", charset="utf8")
     return conn
 
 # 初始化TEST表
