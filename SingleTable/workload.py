@@ -119,6 +119,7 @@ def multiThreadLoad(loadNum):
         t = threading.Thread(target=loadData, args=(i,int(loadNum/20),))
         t.start()
 
+
 if __name__ == "__main__":
     # initialization()
     # insertOne()
