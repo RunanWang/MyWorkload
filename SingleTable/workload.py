@@ -61,25 +61,14 @@ def insertOne():
         conn.rollback()
     conn.close()
 
-
-# 更改一条记录
+# 更改一条记录(FIELD_09)
 def updateByID(id):
     conn = makeConnect()
     cursor = conn.cursor()
-    insertSQL = """INSERT INTO TEST (FIELD_01,FIELD_02,FIELD_03,FIELD_04,FIELD_05,FIELD_06,FIELD_07,FIELD_08,FIELD_09,FIELD_10) VALUES"""
-    insertContent = "("
-    for i in range(1,5):
-        insertContent = insertContent + "\'"+ myRand.randomString(constant.MIN_SHORT_STRING_LEN,constant.MAX_SHORT_STRING_LEN,'A',26) + "\', "
-    for i in range(5,7):
-        insertContent = insertContent + "\'"+ myRand.randomString(constant.MIN_LONG_STRING_LEN,constant.MAX_LONG_STRING_LEN,'A',26) + "\', "
-    insertContent = insertContent + "\'"+ myRand.randomCity(constant.CITY) + "\', "
-    for i in range(8,10):
-        insertContent = insertContent + str(myRand.number(constant.MIN_BIG_INT,constant.MAX_BIG_INT)) + ","
-    insertContent = insertContent + str(myRand.number(constant.MIN_SMALL_INT,constant.MAX_SMALL_INT)) + ")"
-    insertSQL = insertSQL + insertContent
-    logger.debug(insertSQL)
+    sql = """UPDATE TEST SET FIELD_09 = FIELD_09 + 1 where T_ID = %s""" %(str(id))
+    logger.debug(sql)
     try:
-        cursor.execute(insertSQL)
+        cursor.execute(sql)
         conn.commit()
     except Exception:
         logger.warn(Exception)
@@ -130,15 +119,29 @@ def searchByID(id):
         conn.rollback()
     conn.close()
 
+# 查城市
+def searchCountPerCity():
+    conn = makeConnect()
+    cursor = conn.cursor()
+    sql = "select FIELD_07, sum(1) from TEST group by FIELD_07"
+    try:
+        cursor.execute(sql)
+        results = cursor.fetchall()
+        logger.info(results)
+    except Exception:
+        logger.warn(Exception)
+        conn.rollback()
+    conn.close()
 
+# 加载loadnum组数据，loader的log编号为c
 def loadData(c, loadNum):
     for i in range(1, loadNum):
-        if i%10==0:
+        if i%100==0:
             logmsg = str(c)+ "loadData: loaded num = " + str(i)
             logger.info(logmsg)
         insertOne()
 
-
+# 20线程加载
 def multiThreadLoad(loadNum):
     for i in range(20):
         t = threading.Thread(target=loadData, args=(i,int(loadNum/20),))
@@ -147,7 +150,8 @@ def multiThreadLoad(loadNum):
 
 if __name__ == "__main__":
     # initialization()
-    # insertOne()
+    insertOne()
     # searchAll()
     # searchByID(countTotal()-1)
-    multiThreadLoad(1000000)
+    # updateByID(countTotal()-1)
+    # multiThreadLoad(1000000)
