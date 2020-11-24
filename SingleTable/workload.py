@@ -61,6 +61,31 @@ def insertOne():
         conn.rollback()
     conn.close()
 
+
+# 更改一条记录
+def updateByID(id):
+    conn = makeConnect()
+    cursor = conn.cursor()
+    insertSQL = """INSERT INTO TEST (FIELD_01,FIELD_02,FIELD_03,FIELD_04,FIELD_05,FIELD_06,FIELD_07,FIELD_08,FIELD_09,FIELD_10) VALUES"""
+    insertContent = "("
+    for i in range(1,5):
+        insertContent = insertContent + "\'"+ myRand.randomString(constant.MIN_SHORT_STRING_LEN,constant.MAX_SHORT_STRING_LEN,'A',26) + "\', "
+    for i in range(5,7):
+        insertContent = insertContent + "\'"+ myRand.randomString(constant.MIN_LONG_STRING_LEN,constant.MAX_LONG_STRING_LEN,'A',26) + "\', "
+    insertContent = insertContent + "\'"+ myRand.randomCity(constant.CITY) + "\', "
+    for i in range(8,10):
+        insertContent = insertContent + str(myRand.number(constant.MIN_BIG_INT,constant.MAX_BIG_INT)) + ","
+    insertContent = insertContent + str(myRand.number(constant.MIN_SMALL_INT,constant.MAX_SMALL_INT)) + ")"
+    insertSQL = insertSQL + insertContent
+    logger.debug(insertSQL)
+    try:
+        cursor.execute(insertSQL)
+        conn.commit()
+    except Exception:
+        logger.warn(Exception)
+        conn.rollback()
+    conn.close()
+
 # 记录总数
 def countTotal():
     conn = makeConnect()
@@ -125,4 +150,4 @@ if __name__ == "__main__":
     # insertOne()
     # searchAll()
     # searchByID(countTotal()-1)
-    # multiThreadLoad(1000000)
+    multiThreadLoad(1000000)
