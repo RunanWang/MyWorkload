@@ -15,10 +15,10 @@ def makeConnect():
 # 初始化TEST表
 def initialization():
     conn = makeConnect()
-    logger.debug("Start Initialization!")
+    logger.info("Start Initialization!")
     cursor = conn.cursor()
     cursor.execute("DROP TABLE IF EXISTS TEST")
-    logger.debug("TEST table dropped!")
+    logger.info("TEST table dropped!")
     createTableSQL = """CREATE TABLE TEST (
         T_ID INTEGER AUTO_INCREMENT,
         FIELD_01 VARCHAR(32) DEFAULT NULL,
@@ -34,7 +34,7 @@ def initialization():
         PRIMARY KEY (T_ID)
         )"""
     cursor.execute(createTableSQL)
-    logger.debug("TEST table established!")
+    logger.info("TEST table established!")
     conn.close()
 
 # 插入一条随机数据
