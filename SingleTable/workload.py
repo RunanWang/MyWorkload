@@ -178,10 +178,10 @@ def multiThreadLoad(loadNum):
 
 
 if __name__ == "__main__":
-    # initialization()
+    initialization()
     # insertOne()
     # searchAll()
-    searchByID(countTotal()+1)
-    searchF1()
+    # searchByID(countTotal()+1)
+    # searchF1()
     # updateByID(countTotal()-1)
     # multiThreadLoad(1000)
