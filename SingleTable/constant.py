@@ -27,7 +27,7 @@ PROBE_SQL_LIST=[
     "select * from (select * from (select * from TEST where FIELD_08>500 order by FIELD_09)as K order by FIELD_08) as a join (select * from TEST where FIELD_09<200) as b where a.FIELD_08=b.FIELD_08;",
     "select FIELD_07, sum(1) from TEST group by FIELD_07;"
 ]
-PROBE_FILE_PREFIX = "./result/sql_"
+PROBE_FILE_PREFIX = "./result2/sql_"
 PROBE_FILE_SUFFIX = ".csv"
 PROBE_INTERNAL_TIME = 60
 PROBE_TIME_BETWEEN_SQL = 2

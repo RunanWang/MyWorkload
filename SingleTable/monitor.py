@@ -19,10 +19,10 @@ def monitor():
     record2 = []   # executer
     record3 = []   # probe
         
-    process = multiprocessing.Process(target=producer.generateInsert,args=(queue,))
-    process.start()
-    record1.append(process)
-    logger.info("producer.generateInsert start!")
+    # process = multiprocessing.Process(target=producer.generateInsert,args=(queue,))
+    # process.start()
+    # record1.append(process)
+    # logger.info("producer.generateInsert start!")
         
     process = multiprocessing.Process(target=producer.generateUpdate,args=(queue,))
     process.start()
