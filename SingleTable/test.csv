@@ -1,2 +1,0 @@
-starting,Executing hook on transaction ,checking permissions,Opening tables,init,System lock,optimizing,statistics,preparing,executing,end,query end,waiting for handler commit,closing tables,freeing items,cleaning up,total,rowScan,rowOut,Timestamp
-0.000073,0.000007,0.000012,0.000070,0.000009,0.000009,0.000016,0.000021,0.000084,0.010310,0.000010,0.000006,0.000082,0.000025,0.000034,0.000030,0.010798,6162,1129.4945999999998,1606369179.5264804
