@@ -22,7 +22,7 @@ def generateInsert(queue):
         sql = generateSQL.insertOne()
         queue.put(sql)
         count = count + 1
-        if count % 100 == 0:
+        if count % 1000 == 0:
             logger.info("total insert num: " + str(count))
         time.sleep(constant.RATE_INSERT*constant.INTERNAL_SLEEP_TIME)
 
@@ -34,8 +34,8 @@ def generateUpdate(queue):
         sql = generateSQL.updateByID()
         queue.put(sql)
         count = count + 1
-        if count % 100 == 0:
-            logger.info("total num: " + str(count))
+        if count % 1000 == 0:
+            logger.info("total update num: " + str(count))
         time.sleep(constant.RATE_UPDATE*constant.INTERNAL_SLEEP_TIME)
 
 # 生产一条简单search并插入队列中
@@ -43,18 +43,26 @@ def generateSimpleSearch(queue):
     count = 0
     signal.signal(signal.SIGTERM, sigintHandler)
     while True:
-        sql = generateSQL.searchCountPerCity()
+        # sql = generateSQL.searchCountPerCity()
+        # queue.put(sql)
+        # sql = generateSQL.searchF1()
+        # queue.put(sql)
+        # sql = generateSQL.searchF2()
+        # queue.put(sql)
+        sql = generateSQL.searchByID()
         queue.put(sql)
-        sql = generateSQL.searchF1()
-        queue.put(sql)
-        sql = generateSQL.searchF2()
+        # sql = generateSQL.searchCountPerCity()
+        # queue.put(sql)
+        sql = generateSQL.searchByID()
         queue.put(sql)
         sql = generateSQL.searchByID()
         queue.put(sql)
-        sql = generateSQL.searchCountPerCity()
+        sql = generateSQL.searchByID()
+        queue.put(sql)
+        sql = generateSQL.searchByID()
         queue.put(sql)
         count = count + 5
-        if count % 1000 == 0:
+        if count % 100000 == 0:
             logger.info("total search num: " + str(count))
         time.sleep(constant.RATE_SIMPLE_SEARCH*constant.INTERNAL_SLEEP_TIME)
 
@@ -66,6 +74,6 @@ def generateComplexSearch(queue):
         sql = generateSQL.searchAll()
         queue.put(sql)
         count = count + 1
-        if count % 1000 ==0:
+        if count % 3000 ==0:
             logger.info("total search num:" + str(count))
         time.sleep(constant.RATE_COMPLEX_SEARCH*constant.INTERNAL_SLEEP_TIME)

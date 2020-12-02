@@ -65,13 +65,23 @@ def initTotalDict(filename):
     return totalDict
 
 # 信息汇总
-def summaryProfile(explainResults, profileResults):
+def summaryProfile(statusResult, explainResults, profileResults):
     rowsScan, rowsOut = parseExplain(explainResults)
     dictProfile = parseProfile(profileResults)
     dictProfile['rowScan'] = rowsScan
     dictProfile['rowOut'] = rowsOut
     dictProfile['Timestamp'] = time.time()
     return dictProfile
+
+
+def getStatus(cursor):
+    status = {}
+    cursor.execute('''show global status like "%threads_run%";''')
+    result = cursor.fetchall()
+    for item in result:
+        status[item['Variable_name']] = item['Value']
+    logger.debug(result)
+    return status
 
 # 一个探针。
 # 执行SQL并输出执行语句的相关信息，存入csv中。
@@ -81,6 +91,43 @@ def probe(sql, filename):
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     explainSql = "explain " + sql
     try:
+        # 记录status信息
+        cursor.execute("show status;")
+        statusResults = cursor.fetchall()
+
+        # 记录explain结果
+        cursor.execute(explainSql)
+        explainResults = cursor.fetchall()
+
+        # 记录profile结果
+        cursor.execute("SET profiling=1;")
+        cursor.execute(sql)
+        cursor.execute("show profile;")
+        profileResults = cursor.fetchall()
+
+        # 整合结果
+        dictProfile = summaryProfile(statusResults, explainResults, profileResults)
+        totalDict = profile2dict(dictProfile, totalDict)
+
+        # 输出
+        df = pd.DataFrame(totalDict)
+        df.to_csv(filename, index=False, sep=',')
+
+    except Exception:
+        logger.warn(Exception.with_traceback())
+        conn.rollback()
+    conn.close()
+
+# 为了保证定时，让每个thread并行地执行
+def probeThread(lock, sql, filename):
+    totalDict = initTotalDict(filename)
+    conn = makeConnect()
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    explainSql = "explain " + sql
+    try:
+        # 记录status信息
+        
+
         # 记录explain结果
         cursor.execute(explainSql)
         explainResults = cursor.fetchall()
@@ -91,10 +138,16 @@ def probe(sql, filename):
         cursor.execute("show profile;")
         profileResults = cursor.fetchall()
         
-        dictProfile = summaryProfile(explainResults, profileResults)
+        # 整合信息
+        dictProfile = summaryProfile(statusResults, explainResults, profileResults)
         totalDict = profile2dict(dictProfile, totalDict)
         df = pd.DataFrame(totalDict)
+
+        # 加锁防止多线程竞争
+        lock.acquire()
         df.to_csv(filename, index=False, sep=',')
+        lock.release()
+
     except Exception:
         logger.warn(Exception.with_traceback())
         conn.rollback()
@@ -110,16 +163,19 @@ def sigintHandler(signum, frame):
 # 定期进行probe
 def cronProbe(i):
     count = 0
+    lock = threading.Lock()
     signal.signal(signal.SIGTERM, sigintHandler)
     while True:
         sql = constant.PROBE_SQL_LIST[i]
         filename = constant.PROBE_FILE_PREFIX + str(i) + constant.PROBE_FILE_SUFFIX
-        probe(sql, filename)
+        thread_sql = threading.Thread(target=probeThread,args=(lock,sql,filename,))
+        thread_sql.start()
         count = count + 1
         logger.info("probe" + str(i) + "has been executed for:" + str(count) + "times.")
         time.sleep(constant.PROBE_INTERNAL_TIME)
 
 if __name__ == "__main__":
-    sql = "select * from (select * from (select * from TEST where FIELD_08>500 order by FIELD_09)as K order by FIELD_08) as a join (select * from TEST where FIELD_09<200) as b where a.FIELD_08=b.FIELD_08;"
-    probe(sql, "test.csv")
+    # sql = "select * from (select * from (select * from TEST where FIELD_08>500 order by FIELD_09)as K order by FIELD_08) as a join (select * from TEST where FIELD_09<200) as b where a.FIELD_08=b.FIELD_08;"
+    # probe(sql, "test.csv")
+    logger.debug(getStatus(makeConnect().cursor(pymysql.cursors.DictCursor)))
     logger.debug("finish!")

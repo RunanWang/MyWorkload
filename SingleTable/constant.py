@@ -20,14 +20,15 @@ RATE_UPDATE = 1
 RATE_SIMPLE_SEARCH = 0.25
 RATE_COMPLEX_SEARCH = 0.5
 
-INTERNAL_SLEEP_TIME = 0.1
+INTERNAL_SLEEP_TIME = 0.05
 
 # probe
 PROBE_SQL_LIST=[
-    "select * from (select * from (select * from TEST where FIELD_08>500 order by FIELD_09)as K order by FIELD_08) as a join (select * from TEST where FIELD_09<200) as b where a.FIELD_08=b.FIELD_08;",
-    "select FIELD_07, sum(1) from TEST group by FIELD_07;"
+    "select FIELD_07, sum(1) from TEST group by FIELD_07;",
+    "select * from (select * from (select * from (select * from TEST order by FIELD_09)as K order by FIELD_08) as a join (select FIELD_07 as FFIELD_07, FIELD_08 as FFIELD_08, FIELD_09 as FFIELD_09 from TEST) as b where a.FIELD_08=b.FFIELD_08) as c ORDER BY FIELD_09 LIMIT 10;"
+    
 ]
-PROBE_FILE_PREFIX = "./result2/sql_"
+PROBE_FILE_PREFIX = "./result/sql_"
 PROBE_FILE_SUFFIX = ".csv"
-PROBE_INTERNAL_TIME = 60
-PROBE_TIME_BETWEEN_SQL = 2
+PROBE_INTERNAL_TIME = 30
+PROBE_TIME_BETWEEN_SQL = 10

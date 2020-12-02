@@ -12,7 +12,7 @@ logger = logging.getLogger()
 
 # 维护队列并监控生产者消费者
 def monitor():
-    # lock  = multiprocessing.Lock()
+    counter  = multiprocessing.Value('i',lock=True)
     queue = multiprocessing.Queue(100)
     control = multiprocessing.Queue(20)
     record1 = []   # generator
@@ -24,23 +24,23 @@ def monitor():
     # record1.append(process)
     # logger.info("producer.generateInsert start!")
         
-    process = multiprocessing.Process(target=producer.generateUpdate,args=(queue,))
-    process.start()
-    record1.append(process)
-    logger.info("producer.generateUpdate start!")
+    # process = multiprocessing.Process(target=producer.generateUpdate,args=(queue,))
+    # process.start()
+    # record1.append(process)
+    # logger.info("producer.generateUpdate start!")
 
     process = multiprocessing.Process(target=producer.generateSimpleSearch,args=(queue,))
     process.start()
     record1.append(process)
     logger.info("producer.generateSimpleSearch start!")
 
-    process = multiprocessing.Process(target=producer.generateComplexSearch,args=(queue,))
-    process.start()
-    record1.append(process)
-    logger.info("producer.generateComplexSearch start!")
+    # process = multiprocessing.Process(target=producer.generateComplexSearch,args=(queue,))
+    # process.start()
+    # record1.append(process)
+    # logger.info("producer.generateComplexSearch start!")
 
-    for i in range(10):
-        process = multiprocessing.Process(target=consumer.outputQ,args=(queue,))
+    for i in range(16):
+        process = multiprocessing.Process(target=consumer.outputQ,args=(queue,counter))
         process.start()
         record2.append(process)
         logger.info("consumer "+ str(i) + " start!")
@@ -56,6 +56,9 @@ def monitor():
     while True:
         try:
             logger.info("Queue Size Status: "+str(queue.qsize()))
+            with counter.get_lock():
+                logger.info("QPS: "+str(counter.value/20))
+                counter.value = 0
             time.sleep(20)
         except KeyboardInterrupt:
             logger.warn("KeyboardInterrupt!!")

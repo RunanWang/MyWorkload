@@ -17,7 +17,7 @@ def makeConnect():
     return conn
 
 # 从队列里取出并执行每一条SQL
-def outputQ(queue):
+def outputQ(queue, counter):
     signal.signal(signal.SIGTERM, sigintHandler)
     while True:
         # 取出一条
@@ -32,4 +32,7 @@ def outputQ(queue):
             logger.warn(Exception)
             conn.rollback()
         conn.close()
+        # 计数统计QPS
+        with counter.get_lock():
+            counter.value += 1
 
