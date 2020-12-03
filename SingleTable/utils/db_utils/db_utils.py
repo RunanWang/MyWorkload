@@ -1,5 +1,5 @@
 from dbutils.pooled_db import PooledDB
-import db_config as config
+import utils.db_utils.db_config as config
 import pymysql
 import logging
 
