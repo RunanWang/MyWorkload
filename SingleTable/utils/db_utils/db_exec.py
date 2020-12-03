@@ -1,5 +1,6 @@
 from db_utils import get_connection
 import logging
+import pymysql
 
 class MySqLExec(object):
 
@@ -92,6 +93,8 @@ class MySqLExec(object):
             self.close(cursor, conn)
             return count
 
+
+
 if __name__ == '__main__':
     logging.basicConfig(level = logging.DEBUG,format = '%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
     logger = logging.getLogger()
@@ -99,4 +102,6 @@ if __name__ == '__main__':
     sql1 = 'select count(*) from TEST;'
     ret = db.fetchall(sql=sql1)
     logger.debug(ret)
+    
+    
     

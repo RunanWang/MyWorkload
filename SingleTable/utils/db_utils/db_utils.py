@@ -1,6 +1,7 @@
 from dbutils.pooled_db import PooledDB
 import db_config as config
 import pymysql
+import logging
 
 class MyConnectionPool(object):
     __pool = None
@@ -44,7 +45,7 @@ class MyConnectionPool(object):
     # 从连接池中取出一个连接
     def getconn(self):
         conn = self.__getconn()
-        cursor = conn.cursor(pymysql.cursors.DictCursor)
+        cursor = conn.cursor(config.DB_CURSOR_TYPE)
         return cursor, conn
 
 
@@ -52,3 +53,26 @@ class MyConnectionPool(object):
 def get_connection():
     return MyConnectionPool()
 
+# 获取单个链接
+def getCursor():
+    conn = pymysql.connect(
+        host=config.DB_HOST, 
+        port=config.DB_PORT, 
+        user=config.DB_USER, 
+        password=config.DB_PASSWORD, 
+        database=config.DB_DBNAME, 
+        charset=config.DB_CHARSET
+        )
+    cursor = conn.cursor(config.DB_CURSOR_TYPE)
+    return cursor
+
+if __name__ == "__main__":
+    logging.basicConfig(level = logging.DEBUG,format = '%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger()
+    sql1 = 'select count(*) from TEST;'
+    cursor = getCursor()
+    cursor.execute("SET profiling=1;")
+    cursor.execute(sql1)
+    cursor.execute("show profile;")
+    profileResults = cursor.fetchall()
+    logger.debug(profileResults)

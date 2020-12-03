@@ -33,3 +33,5 @@ DB_SET_SESSION = None
 
 # creator : 使用连接数据库的模块
 DB_CREATOR = pymysql
+
+DB_CURSOR_TYPE = pymysql.cursors.DictCursor
