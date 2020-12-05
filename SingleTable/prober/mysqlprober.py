@@ -1,7 +1,6 @@
 import utils.myLogger
 import drivers.mysqldriver as mysql
-import myRand
-import constant
+import config.config as constant
 import threading
 import pandas as pd
 import time
@@ -79,10 +78,10 @@ def getStatus(cursor):
 
 # 一个探针。
 # 执行SQL并输出执行语句的相关信息，存入csv中。
-def probe(sql, filename):
+def probe(lock, sql, filename):
     totalDict = initTotalDict(filename)
-    conn = makeConnect()
-    cursor = mysql.MysqlDriver.
+    mysqlD = mysql.MysqlDriver()
+    conn, cursor = mysqlD.getCursor()
     explainSql = "explain " + sql
     try:
         # 记录status信息
@@ -105,39 +104,6 @@ def probe(sql, filename):
 
         # 输出
         df = pd.DataFrame(totalDict)
-        df.to_csv(filename, index=False, sep=',')
-
-    except Exception:
-        logger.warn(Exception.with_traceback())
-        conn.rollback()
-    conn.close()
-
-# 为了保证定时，让每个thread并行地执行
-def probeThread(lock, sql, filename):
-    totalDict = initTotalDict(filename)
-    conn = makeConnect()
-    cursor = conn.cursor(pymysql.cursors.DictCursor)
-    explainSql = "explain " + sql
-    try:
-        # 记录status信息
-        
-
-        # 记录explain结果
-        cursor.execute(explainSql)
-        explainResults = cursor.fetchall()
-
-        # 记录profile结果
-        cursor.execute("SET profiling=1;")
-        cursor.execute(sql)
-        cursor.execute("show profile;")
-        profileResults = cursor.fetchall()
-        
-        # 整合信息
-        dictProfile = summaryProfile(statusResults, explainResults, profileResults)
-        totalDict = profile2dict(dictProfile, totalDict)
-        df = pd.DataFrame(totalDict)
-
-        # 加锁防止多线程竞争
         lock.acquire()
         df.to_csv(filename, index=False, sep=',')
         lock.release()
@@ -145,13 +111,14 @@ def probeThread(lock, sql, filename):
     except Exception:
         logger.warn(Exception.with_traceback())
         conn.rollback()
-    conn.close()
+    
+    finally:
+        cursor.close()
+        conn.close()
 
 # terminate处理
 def sigintHandler(signum, frame):
     logger.warn("probe" + "terminate!")
-    # 需要最后做的事情
-    # print("执行最后的清理工作。")
     exit()
 
 # 定期进行probe
@@ -162,7 +129,7 @@ def cronProbe(i):
     while True:
         sql = constant.PROBE_SQL_LIST[i]
         filename = constant.PROBE_FILE_PREFIX + str(i) + constant.PROBE_FILE_SUFFIX
-        thread_sql = threading.Thread(target=probeThread,args=(lock,sql,filename,))
+        thread_sql = threading.Thread(target=probe,args=(lock,sql,filename,))
         thread_sql.start()
         count = count + 1
         logger.info("probe" + str(i) + "has been executed for:" + str(count) + "times.")

@@ -54,7 +54,7 @@ class MysqlDriver(AbstractDriver):
             charset=DB_CHARSET
             )
         cursor = conn.cursor(DB_CURSOR_TYPE)
-        return cursor
+        return conn, cursor
     
     def initDB(self):
         """初始化数据库"""
