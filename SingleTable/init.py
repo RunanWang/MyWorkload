@@ -2,8 +2,8 @@ import os
 import time
 import shutil
 import config.config
-from utils.db_utils.db_utils import getCursor
 from utils.myLogger import getCMDLogger
+from utils.db_utils import mysqlDriver
 
 def mkdir_job(dir_path):
     if not os.path.exists(dir_path):
@@ -20,19 +20,15 @@ def mv_old_result():
         shutil.move("./result",newDirName)
     check_dir()
 
-def init_db():
-    cursor = getCursor()
-    getCMDLogger().info("Start Database Initialization!")
-    cursor.execute("DROP TABLE IF EXISTS TEST")
-    getCMDLogger().info("TEST table dropped!")
-    cursor.execute(config.config.CREATE_TABLE_SQL)
-    getCMDLogger().info("TEST table established!")
-    cursor.close()
+def init_db_table():
+    mysql = mysqlDriver.MySQLDriver()
+    mysql.initDB()
+    mysql.initTable(config.config.CREATE_TABLE_SQL)
 
 
 if __name__ == "__main__":
-    getCMDLogger().info("Checking Dir!")
-    check_dir()
-    getCMDLogger().info("Moving Old Versions!")
-    mv_old_result()
-    init_db()
+    # getCMDLogger().info("Checking Dir!")
+    # check_dir()
+    # getCMDLogger().info("Moving Old Versions!")
+    # mv_old_result()
+    # init_db_table()

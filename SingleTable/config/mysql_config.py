@@ -17,7 +17,7 @@ DB_MIN_CACHED = 16
 DB_MAX_CACHED = 16
 
 # maxshared : 共享连接数允许的最大数量(缺省值 0 代表所有连接都是专用的)如果达到了最大数量,被请求为共享的连接将会被共享使用
-DB_MAX_SHARED = 32
+DB_MAX_SHARED = 0
 
 # maxconnecyions : 创建连接池的最大数量(缺省值 0 代表不限制)
 DB_MAX_CONNECYIONS = 128
@@ -35,3 +35,4 @@ DB_SET_SESSION = None
 DB_CREATOR = pymysql
 
 DB_CURSOR_TYPE = pymysql.cursors.DictCursor
+

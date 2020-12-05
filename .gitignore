@@ -126,3 +126,6 @@ dmypy.json
 
 # csv results
 *.csv
+
+# test
+test.py
