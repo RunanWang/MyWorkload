@@ -1,4 +1,3 @@
-import multiprocessing
 import generateSQL
 import time
 import config.config as constant
@@ -9,8 +8,6 @@ logger = getCMDLogger()
 
 def sigintHandler(signum, frame):
     logger.warn("generator terminate!")
-    # 需要最后做的事情
-    # print("执行最后的清理工作。")
     exit()
 
 # 生产一条insert并插入队列中

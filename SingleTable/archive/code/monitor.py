@@ -39,7 +39,7 @@ def monitor():
     # logger.info("producer.generateComplexSearch start!")
 
     for i in range(2):
-        process = multiprocessing.Process(target=consumer.outputQ,args=("mysql",queue,counter))
+        process = multiprocessing.Process(target=consumer.excuteOneInQueue,args=("mysql",queue,counter))
         process.start()
         record2.append(process)
         logger.info("consumer "+ str(i) + " start!")
