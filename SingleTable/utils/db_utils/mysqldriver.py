@@ -5,9 +5,9 @@ from dbutils.pooled_db import PooledDB
 
 import pymysql
 
-class MySQLDriver(AbstractDriver):
+class MysqlDriver(AbstractDriver):
     def __init__(self):
-        super(MySQLDriver,self).__init__("MySQL")
+        super(MysqlDriver,self).__init__("MySQL")
         self.__pool = None
         self.logger = getCMDLogger()
     
@@ -145,3 +145,13 @@ class MySQLDriver(AbstractDriver):
         finally:
             self.closeConn(cursor, conn)
 
+    # 执行
+    def exec(self, input):
+        try:
+            cursor, conn, count = self.execute(input)
+            return count
+        except Exception as e:
+            self.logger.warn(e)
+            return count
+        finally:
+            self.closeConn(cursor, conn)

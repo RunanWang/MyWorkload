@@ -1,9 +1,5 @@
-import logging
-import myRand
-import constant
-
-logging.basicConfig(level = logging.INFO,format = '%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
+import utils.myRand as myRand
+import config.config as constant
 
 # 插入一条随机数据
 def insertOne():

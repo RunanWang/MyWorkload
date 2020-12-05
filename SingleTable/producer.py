@@ -1,12 +1,11 @@
 import multiprocessing
 import generateSQL
 import time
-import constant
+import config.config as constant
 import signal
-import logging
+from utils.myLogger import getCMDLogger
 
-logging.basicConfig(level = logging.DEBUG,format = '%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
+logger = getCMDLogger()
 
 def sigintHandler(signum, frame):
     logger.warn("generator terminate!")

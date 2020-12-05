@@ -1,10 +1,13 @@
 import multiprocessing
-import pymysql
 import logging
 import signal
+import utils.db_utils
 
-logging.basicConfig(level = logging.DEBUG,format = '%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
+def createDriverClass(name):
+    full_name = "%sDriver" % name.title()
+    mod = __import__('utils.db_utils.%s' % full_name.lower(), globals(), locals(), [full_name])
+    klass = getattr(mod, full_name)
+    return klass
 
 def sigintHandler(signum, frame):
     logger.warn("consumer terminate")
@@ -12,26 +15,19 @@ def sigintHandler(signum, frame):
     # print("执行最后的清理工作。")
     exit()
 
-def makeConnect():
-    conn = pymysql.connect(host="127.0.0.1", port=36036, user="root", password="1", database="test", charset="utf8")
-    return conn
-
 # 从队列里取出并执行每一条SQL
-def outputQ(queue, counter):
+def outputQ(name, queue, counter):
+    driverClass = createDriverClass(name)
+    driver = driverClass()
     signal.signal(signal.SIGTERM, sigintHandler)
     while True:
         # 取出一条
         sql = queue.get()
         # 执行
-        conn = makeConnect()
-        cursor = conn.cursor()
         try:
-            cursor.execute(sql)
-            conn.commit()
+            driver.exec(sql)
         except Exception:
-            logger.warn(Exception)
-            conn.rollback()
-        conn.close()
+            pass
         # 计数统计QPS
         with counter.get_lock():
             counter.value += 1

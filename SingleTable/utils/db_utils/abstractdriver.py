@@ -33,3 +33,7 @@ class AbstractDriver(object):
     def getall(self, input):
         """从数据库中取全部信息，信息包含在input中"""
         return None
+
+    def exec(self, input):
+        """从数据库中更改一条信息，信息包含在input中"""
+        return None
