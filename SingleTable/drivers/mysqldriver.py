@@ -1,4 +1,4 @@
-from utils.db_utils.abstractdriver import *
+from drivers.abstractdriver import *
 from config.mysql_config import *
 from utils.myLogger import getCMDLogger
 from dbutils.pooled_db import PooledDB

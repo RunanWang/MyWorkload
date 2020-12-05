@@ -3,7 +3,6 @@ import time
 import shutil
 import config.config
 from utils.myLogger import getCMDLogger
-from utils.db_utils import mysqlDriver
 
 def mkdir_job(dir_path):
     if not os.path.exists(dir_path):
@@ -20,15 +19,14 @@ def mv_old_result():
         shutil.move("./result",newDirName)
     check_dir()
 
-def init_db_table():
-    mysql = mysqlDriver.MySQLDriver()
-    mysql.initDB()
-    mysql.initTable(config.config.CREATE_TABLE_SQL)
+def createDriverClass(name):
+    full_name = "%sDriver" % name.title()
+    mod = __import__('drivers.%s' % full_name.lower(), globals(), locals(), [full_name])
+    klass = getattr(mod, full_name)
+    return klass
 
-
-if __name__ == "__main__":
-    # getCMDLogger().info("Checking Dir!")
-    # check_dir()
-    # getCMDLogger().info("Moving Old Versions!")
-    # mv_old_result()
-    # init_db_table()
+def init_db_table(name):
+    driverClass = createDriverClass(name)
+    driver = driverClass()
+    driver.initDB()
+    driver.initTable(config.config.CREATE_TABLE_SQL)

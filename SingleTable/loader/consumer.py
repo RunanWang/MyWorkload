@@ -1,11 +1,11 @@
 import signal
-import utils.db_utils
+import drivers
 from utils.myLogger import getCMDLogger
 
 # 寻找name对应的driver
 def createDriverClass(name):
     full_name = "%sDriver" % name.title()
-    mod = __import__('utils.db_utils.%s' % full_name.lower(), globals(), locals(), [full_name])
+    mod = __import__('drivers.%s' % full_name.lower(), globals(), locals(), [full_name])
     klass = getattr(mod, full_name)
     return klass
 
