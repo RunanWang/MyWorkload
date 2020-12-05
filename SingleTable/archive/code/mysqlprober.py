@@ -1,5 +1,5 @@
-import utils.myLogger
-import drivers.mysqldriver as mysql
+import pymysql
+import logging
 import myRand
 import constant
 import threading
@@ -8,7 +8,13 @@ import time
 import os
 import signal
 
-logger = utils.myLogger.getCMDLogger()
+logging.basicConfig(level = logging.DEBUG,format = '%(asctime)s - %(funcName)s - %(levelname)s - %(message)s')
+logger = logging.getLogger()
+
+# 数据库链接
+def makeConnect():
+    conn = pymysql.connect(host="127.0.0.1", port=36036, user="root", password="1", database="test", charset="utf8")
+    return conn
 
 # 把explain语句中的信息解析出来
 # 输出扫描行数和结果行数
@@ -82,7 +88,7 @@ def getStatus(cursor):
 def probe(sql, filename):
     totalDict = initTotalDict(filename)
     conn = makeConnect()
-    cursor = mysql.MysqlDriver.
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
     explainSql = "explain " + sql
     try:
         # 记录status信息
@@ -167,3 +173,9 @@ def cronProbe(i):
         count = count + 1
         logger.info("probe" + str(i) + "has been executed for:" + str(count) + "times.")
         time.sleep(constant.PROBE_INTERNAL_TIME)
+
+if __name__ == "__main__":
+    # sql = "select * from (select * from (select * from TEST where FIELD_08>500 order by FIELD_09)as K order by FIELD_08) as a join (select * from TEST where FIELD_09<200) as b where a.FIELD_08=b.FIELD_08;"
+    # probe(sql, "test.csv")
+    logger.debug(getStatus(makeConnect().cursor(pymysql.cursors.DictCursor)))
+    logger.debug("finish!")

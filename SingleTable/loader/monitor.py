@@ -2,10 +2,18 @@ import os
 import time
 import multiprocessing
 
+import drivers
 import loader.producer as producer
 import loader.consumer as consumer
 import config.config as constant
 from utils.myLogger import getCMDLogger
+
+# 寻找name对应的driver
+def createDriverClass(name):
+    full_name = "%sDriver" % name.title()
+    mod = __import__('drivers.%s' % full_name.lower(), globals(), locals(), [full_name])
+    klass = getattr(mod, full_name)
+    return klass
 
 # 维护队列并监控生产者消费者
 def monitor(name):
@@ -14,11 +22,15 @@ def monitor(name):
     queue = multiprocessing.Queue(100)
     record1 = []   # generator
     record2 = []   # executer
+
+    # 寻找对应的数据库执行Driver
+    driverClass = createDriverClass(name)
+    driver = driverClass()
         
     record1 = producer.workload2generator(name, queue)
 
     for i in range(2):
-        process = multiprocessing.Process(target=consumer.excuteOneInQueue,args=(name, queue, counter))
+        process = multiprocessing.Process(target=consumer.excuteOneInQueue,args=(driver, name, queue, counter))
         process.start()
         record2.append(process)
         logger.info("consumer "+ str(i) + " start!")
