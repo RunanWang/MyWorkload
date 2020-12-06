@@ -29,4 +29,7 @@ def init_db_table(name):
     driverClass = createDriverClass(name)
     driver = driverClass()
     driver.initDB()
-    driver.initTable(config.config.CREATE_TABLE_SQL)
+    full_name = "%s_config" % name.title()
+    mod = __import__('config.%s' % full_name.lower(), globals(), locals(), [full_name])
+    init_sql = getattr(mod, "CREATE_TABLE")
+    driver.initTable(init_sql)

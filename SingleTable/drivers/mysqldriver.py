@@ -68,7 +68,7 @@ class MysqlDriver(AbstractDriver):
     def initTable(self, input):
         """初始化表"""
         self.logger.info("Start Database Initialization!")
-        cursor = self.getCursor()
+        conn, cursor = self.getCursor()
         try:
             for sql in input:
                 cursor.execute(sql)
@@ -78,6 +78,7 @@ class MysqlDriver(AbstractDriver):
             self.logger.warn(e)
         finally:
             cursor.close()
+            conn.close()
 
     # 封装执行命令
     def execute(self, sql):
