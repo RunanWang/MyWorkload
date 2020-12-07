@@ -4,7 +4,6 @@ import config.config
 import multiprocessing
 import csv
 import time
-import os
 import signal
 
 PROBE_SQL_LIST=[
@@ -15,7 +14,8 @@ PROBE_SQL_LIST=[
 headers = [
     'plan', 'rowScan', 'rowOut', 'startTime', 'oTableTime', 'cTableTime', 'transHookTime', 
     'lockTime', 'initTime','optimizeTime', 'statTime', 'prepareTime', 'execTime', 'endTime',
-    'qEndTime', 'commitTime', 'crTmpTime', 'rmTmpTime', 'freeTime', 'cleanTime', 'totalTime'
+    'qEndTime', 'commitTime', 'crTmpTime', 'rmTmpTime', 'freeTime', 'cleanTime', 'totalTime',
+    'timestamp'
     ]
 mysql = mysql.MysqlDriver()
 logger = utils.myLogger.getCMDLogger()
@@ -91,6 +91,7 @@ def result_packer(i, explainResp, profileResp, queue):
     result = {}
     content = {}
     dictExplain = parseExplain(explainResp)
+    content['timestamp'] = time.time()
     content['plan'] = dictExplain['plan']
     content['rowScan'] = dictExplain['rowsScan']
     content['rowOut'] = dictExplain['rowsOut']
@@ -123,22 +124,27 @@ def result_packer(i, explainResp, profileResp, queue):
 
 # 把result字典保存至num对应的文件/数据库中
 def save_result(queue):
+    logger.info("Probe Writer Started!!")
     while True:
-        result = queue.get()
-        cont_id = result['id']
-        cont = result['content']
-        filename = config.config.PROBE_FILE_PREFIX + str(cont_id) + config.config.PROBE_FILE_SUFFIX
-        cont_in = []
-        for rowname in headers:
-            try:
-                temp = cont[rowname]
-            except KeyError:
-                temp = ''
-            cont_in.append(temp)
-        # logger.debug(cont_in)
-        with open(filename, 'a') as f:
-            f_csv = csv.writer(f)
-            f_csv.writerow(cont_in)
+        try:
+            result = queue.get()
+            cont_id = result['id']
+            cont = result['content']
+            filename = config.config.PROBE_FILE_PREFIX + str(cont_id) + config.config.PROBE_FILE_SUFFIX
+            cont_in = []
+            for rowname in headers:
+                try:
+                    temp = cont[rowname]
+                except KeyError:
+                    temp = ''
+                cont_in.append(temp)
+            # logger.debug(cont_in)
+            with open(filename, 'a') as f:
+                f_csv = csv.writer(f)
+                f_csv.writerow(cont_in)
+        except KeyboardInterrupt:
+            logger.warn("Probe Writer Terminated!!")
+            break
 
 
 # 定期执行相应的
@@ -160,9 +166,11 @@ def workflow_probe(i, queue):
 # 根据probe-list，调用相应的work-flow-probe，并管理各个workflow优雅退出。
 def probe_monitor():
     record = []
+    flag = True
     queue = multiprocessing.Queue()
     processW = multiprocessing.Process(target=save_result, args=(queue, ))
     processW.start()
+    record.append(processW)
     for i in range(len(PROBE_SQL_LIST)):
         # 初始化对应的csv文件
         filename = config.config.PROBE_FILE_PREFIX + str(i) + config.config.PROBE_FILE_SUFFIX
@@ -173,14 +181,27 @@ def probe_monitor():
         process = multiprocessing.Process(target=workflow_probe, args=(i, queue, ))
         process.start()
         record.append(process)
-        logger.info("probe "+ str(i) + " start!")
-        time.sleep(config.config.PROBE_TIME_BETWEEN_SQL)
-    while True:
+        logger.info("Prober of Query "+ str(i) + " started!")
+        try:
+            time.sleep(config.config.PROBE_TIME_BETWEEN_SQL)
+        except KeyboardInterrupt:
+            queue.close()
+            for p in record:
+                p.terminate()
+                p.join()
+                time.sleep(0.01)
+            logger.warn("Probe Monitor Terminated!!")
+            flag = False
+            break
+    while flag:
         try:
             time.sleep(1)
         except KeyboardInterrupt:
+            queue.close()
             for p in record:
                 p.terminate()
-            processW.terminate()
-            queue.close()
-            logger.warn("Probe Closed!!")
+                p.join()
+                time.sleep(0.01)
+            break
+            
+    logger.warn("Probe Monitor Terminated!!")

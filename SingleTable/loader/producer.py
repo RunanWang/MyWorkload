@@ -1,5 +1,4 @@
 import time
-import signal
 import multiprocessing
 import config.config
 from utils.myLogger import getCMDLogger
@@ -13,20 +12,19 @@ def createWorkloadClass(name):
     klass = getattr(mod, full_name)
     return klass
 
-def sigintHandler(signum, frame):
-    logger.warn("generator terminate!")
-    exit()
-
 def producer(itemname, sqlGen, stime, queue):
     count = 0
-    signal.signal(signal.SIGTERM, sigintHandler)
     while True:
-        sql = sqlGen()
-        queue.put(sql)
-        count = count + 1
-        if count % 1000 == 0:
-            logger.info("total "+ itemname +" excuted num: " + str(count))
-        time.sleep(stime)
+        try:
+            sql = sqlGen()
+            queue.put(sql)
+            count = count + 1
+            if count % 1000 == 0:
+                logger.info("total "+ itemname +" excuted num: " + str(count))
+            time.sleep(stime)
+        except KeyboardInterrupt:
+            logger.warn("Loader Producer "+ itemname +" Terminated!!")
+            break
 
 def workload2generator(name, queue):
     record = []   # generator

@@ -30,7 +30,8 @@ def monitor(name):
     record1 = producer.workload2generator(name, queue)
 
     for i in range(2):
-        process = multiprocessing.Process(target=consumer.excuteOneInQueue,args=(driver, name, queue, counter))
+        cname = "consumer" + str(i)
+        process = multiprocessing.Process(target=consumer.excuteOneInQueue,args=(driver, cname, queue, counter))
         process.start()
         record2.append(process)
         logger.info("consumer "+ str(i) + " start!")
@@ -43,11 +44,16 @@ def monitor(name):
                 counter.value = 0
             time.sleep(20)
         except KeyboardInterrupt:
-            logger.warn("KeyboardInterrupt!!")
-            for p in record1:  
+            # logger.warn("KeyboardInterrupt!!")
+            queue.close()
+            for p in record2:  
                 p.terminate()
-            for p in record2:
+                p.join()
+            for p in record1:
                 p.terminate()
+                p.join()
+                time.sleep(0.1)
             time.sleep(1)
-            logger.warn("Finish!!")
+            # driver.close()
+            logger.warn("Loader Monitor Terminated!!")
             break
