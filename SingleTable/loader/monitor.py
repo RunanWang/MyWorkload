@@ -26,15 +26,19 @@ def monitor(name):
     # 寻找对应的数据库执行Driver
     driverClass = createDriverClass(name)
     driver = driverClass()
+    cursor, conn = driver.getconn()
         
     record1 = producer.workload2generator(name, queue)
 
-    for i in range(2):
+    for i in range(8):
         cname = "consumer" + str(i)
         process = multiprocessing.Process(target=consumer.excuteOneInQueue,args=(driver, cname, queue, counter))
         process.start()
         record2.append(process)
         logger.info("consumer "+ str(i) + " start!")
+
+    cursor.close()
+    conn.close()
 
     while True:
         try:

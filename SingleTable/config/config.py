@@ -15,7 +15,7 @@ MIN_BIG_INT = 100
 MAX_BIG_INT = 999
 
 # Workload
-INTERNAL_SLEEP_TIME = 0.05
+INTERNAL_SLEEP_TIME = 0.02
 
 # probe
 PROBE_FILE_PREFIX = "./result/sql_"

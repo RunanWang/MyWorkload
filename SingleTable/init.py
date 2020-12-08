@@ -33,3 +33,4 @@ def init_db_table(name):
     mod = __import__('config.%s' % full_name.lower(), globals(), locals(), [full_name])
     init_sql = getattr(mod, "CREATE_TABLE")
     driver.initTable(init_sql)
+    driver.close()

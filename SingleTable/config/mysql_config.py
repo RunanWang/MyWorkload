@@ -20,7 +20,7 @@ DB_MAX_CACHED = 16
 DB_MAX_SHARED = 0
 
 # maxconnecyions : 创建连接池的最大数量(缺省值 0 代表不限制)
-DB_MAX_CONNECYIONS = 128
+DB_MAX_CONNECYIONS = 32
 
 # blocking : 设置在连接池达到最大数量时的行为(缺省值 0 或 False 代表返回一个错误<toMany......> 其他代表阻塞直到连接数减少,连接被分配)
 DB_BLOCKING = True

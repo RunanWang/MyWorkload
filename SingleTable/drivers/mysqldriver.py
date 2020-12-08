@@ -31,10 +31,12 @@ class MysqlDriver(AbstractDriver):
                 use_unicode=False,
                 charset=DB_CHARSET
             )
+            self.logger.info("Driver Pool Established!")
         return self.__pool.connection(shareable = False)
 
     # 释放连接池资源
     def close(self):
+        self.logger.info("Driver Closed!")
         self.__pool.close()
     
     # 从连接池中取出一个连接
@@ -152,7 +154,7 @@ class MysqlDriver(AbstractDriver):
             cursor, conn, count = self.execute(input)
             return count
         except Exception as e:
-            self.logger.warn(e)
-            return count
+            self.logger.warn(e.with_traceback())
+            return -1
         finally:
             self.closeConn(cursor, conn)

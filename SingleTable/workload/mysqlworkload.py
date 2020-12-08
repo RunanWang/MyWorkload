@@ -7,9 +7,14 @@ class MysqlWorkload(object):
         ################################################
         # 下面配置每一种workload在每隔多少个时间单位执行1次
         ################################################
-        self.workload['workload_insert'] = 1
-        self.workload['workload_updateByID'] = 1
-        self.workload['workload_countTotal'] = 1
+        self.workload['workload_insert'] = 2
+        self.workload['workload_updateByID'] = 2
+        self.workload['workload_delete'] = 20
+
+        self.workload['workload_countTotal'] = 2
+        self.workload['workload_searchByID'] = 1
+        self.workload['workload_searchF2'] = 4
+        # self.workload['workload_searchCountPerCity'] = 3
 
     def get_workload(self):
         return self.workload
@@ -59,5 +64,10 @@ class MysqlWorkload(object):
 
     # 查字符串-distinct
     def workload_searchF2(self):
-        sql = "select distinct FIELD_02 from TEST"
+        sql = "select distinct FIELD_02 from TEST LIMIT 10"
+        return sql
+    
+    # 删
+    def workload_delete(self):
+        sql = "delete from TEST where T_ID = ((select a.T_ID from (SELECT T_ID from TEST where FIELD_01 LIKE '%A%' AND T_ID > 200 LIMIT 1) as a))"
         return sql
