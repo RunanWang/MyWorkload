@@ -1,5 +1,6 @@
 import time
 import multiprocessing
+import scipy.stats
 import config.config
 from utils.myLogger import getCMDLogger
 
@@ -12,7 +13,7 @@ def createWorkloadClass(name):
     klass = getattr(mod, full_name)
     return klass
 
-def producer(itemname, sqlGen, stime, queue):
+def producer(itemname, sqlGen, workload_info, queue):
     count = 0
     while True:
         try:
@@ -21,6 +22,9 @@ def producer(itemname, sqlGen, stime, queue):
             count = count + 1
             if count % 1000 == 0:
                 logger.info("total "+ itemname +" excuted num: " + str(count))
+            stime = scipy.stats.norm.rvs(loc=workload_info['wait_time_exp'], scale=workload_info['wait_time_var'])
+            if stime < 0:
+                stime = 0
             time.sleep(stime)
         except KeyboardInterrupt:
             logger.warn("Loader Producer "+ itemname +" Terminated!!")
@@ -32,8 +36,8 @@ def workload2generator(name, queue):
     workload = workloadClass()
     for item, v in workload.get_workload().items():
         sqlGen = getattr(workload, item)
-        stime = v * config.config.INTERNAL_SLEEP_TIME
-        process = multiprocessing.Process(target=producer,args=(item, sqlGen, stime, queue,))
+        workload_info = v
+        process = multiprocessing.Process(target=producer,args=(item, sqlGen, workload_info, queue,))
         process.start()
         record.append(process)
         logger.info("producer."+ item +" started!")

@@ -7,17 +7,24 @@ class MysqlWorkload(object):
         ################################################
         # 下面配置每一种workload在每隔多少个时间单位执行1次
         ################################################
-        self.workload['workload_insert'] = 2
-        self.workload['workload_updateByID'] = 2
-        self.workload['workload_delete'] = 20
+        # self.workload['workload_insert'] = self.set_workload(wait_time_exp = 0, wait_time_var = 1)
+        self.workload['workload_updateByID'] = self.set_workload(wait_time_exp = 2)
+        self.workload['workload_delete'] = self.set_workload(wait_time_exp = 20)
 
-        self.workload['workload_countTotal'] = 2
-        self.workload['workload_searchByID'] = 1
-        self.workload['workload_searchF2'] = 4
+        self.workload['workload_countTotal'] = self.set_workload(wait_time_exp = 2)
+        self.workload['workload_searchByID'] = self.set_workload(wait_time_exp = 2)
+        self.workload['workload_searchF2'] = self.set_workload(wait_time_exp = 2)
         # self.workload['workload_searchCountPerCity'] = 3
 
     def get_workload(self):
         return self.workload
+
+
+    def set_workload(self, wait_time_exp = 2, wait_time_var = 0):
+        msg = {}
+        msg['wait_time_exp'] = wait_time_exp
+        msg['wait_time_var'] = wait_time_var
+        return msg
 
     ####################################
     # 下面配置每一种Workload的具体生成函数
