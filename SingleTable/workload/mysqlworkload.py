@@ -9,12 +9,12 @@ class MysqlWorkload(object):
         ################################################
         # self.workload['workload_insert'] = self.set_workload(wait_time_exp = 0, wait_time_var = 1)
         self.workload['workload_updateByID'] = self.set_workload(wait_time_exp = 2)
-        self.workload['workload_delete'] = self.set_workload(wait_time_exp = 20)
+        # self.workload['workload_delete'] = self.set_workload(wait_time_exp = 20)
 
-        self.workload['workload_countTotal'] = self.set_workload(wait_time_exp = 2)
-        self.workload['workload_searchByID'] = self.set_workload(wait_time_exp = 2)
-        self.workload['workload_searchF2'] = self.set_workload(wait_time_exp = 2)
-        # self.workload['workload_searchCountPerCity'] = 3
+        self.workload['workload_countTotal'] = self.set_workload(wait_time_exp = 0.02)
+        self.workload['workload_searchByID'] = self.set_workload(wait_time_exp = 0.02)
+        self.workload['workload_searchF2'] = self.set_workload(wait_time_exp = 0.02)
+        self.workload['workload_searchCountPerCity'] = self.set_workload(wait_time_exp = 2)
 
     def get_workload(self):
         return self.workload
@@ -61,7 +61,7 @@ class MysqlWorkload(object):
 
     # 查城市
     def workload_searchCountPerCity(self):
-        sql = "select FIELD_07, sum(1) from TEST group by FIELD_07"
+        sql = "select FIELD_07, CAST (sum(1) AS CHAR) from TEST group by FIELD_07"
         return sql
 
     # 查字符串-like

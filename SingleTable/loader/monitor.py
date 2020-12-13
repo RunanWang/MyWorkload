@@ -27,15 +27,15 @@ def monitor(name):
     driverClass = createDriverClass(name)
     driver = driverClass()
     cursor, conn = driver.getconn()
-        
     record1 = producer.workload2generator(name, queue)
 
-    for i in range(8):
+    for i in range(16):
         cname = "consumer" + str(i)
         process = multiprocessing.Process(target=consumer.excuteOneInQueue,args=(driver, cname, queue, counter))
         process.start()
         record2.append(process)
         logger.info("consumer "+ str(i) + " start!")
+        time.sleep(0.1)
 
     cursor.close()
     conn.close()

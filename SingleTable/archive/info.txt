@@ -1,0 +1,15 @@
+select
+table_schema as 'database',
+table_name as 'table',
+table_rows as 'records',
+truncate(data_length/1024/1024, 2) as 'data(MB)',
+truncate(index_length/1024/1024, 2) as 'index(MB)'
+from information_schema.tables
+where table_schema='test'
+order by data_length desc, index_length desc;
+
++----------+-------+---------+----------+-----------+
+| database | table | records | data(MB) | index(MB) |
++----------+-------+---------+----------+-----------+
+| test     | TEST  |  129509 |    16.51 |      0.00 |
++----------+-------+---------+----------+-----------+

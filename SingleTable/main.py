@@ -7,7 +7,8 @@ import utils.myLogger
 
 processList = []
 logger = utils.myLogger.getCMDLogger()
-init.init_db_table("mysql")
+# init.init_db_table("mysql")
+init.mv_old_result()
 processM = multiprocessing.Process(target=monitor.monitor,args=("mysql",))
 processM.start()
 processP = multiprocessing.Process(target=prober.probe_monitor, args=())

@@ -92,6 +92,7 @@ class MysqlDriver(AbstractDriver):
         cursor, conn = self.getconn()  # 从连接池获取连接
         count = 0
         try:
+            conn.ping(reconnect=True)
             # count : 为改变的数据条数
             count = cursor.execute(sql)
             conn.commit()
@@ -157,4 +158,9 @@ class MysqlDriver(AbstractDriver):
             self.logger.warn(e.with_traceback())
             return -1
         finally:
-            self.closeConn(cursor, conn)
+            try:
+                self.closeConn(cursor, conn)
+            except:
+                pass
+
+        
