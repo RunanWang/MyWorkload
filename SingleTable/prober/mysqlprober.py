@@ -43,13 +43,13 @@ headers = [
 
     'Table_open_cache_hits', 'Table_open_cache_misses', 'Table_open_cache_overflows', 'Threads_cached', 'Threads_connected', 'Threads_created',
 
-    'totalTime','timestamp'
+    'status_time', 'totalTime','timestamp'
     ]
 mysql = mysql.MysqlDriver()
 logger = utils.myLogger.getCMDLogger()
 
 # 解析两次status形成输出
-def parseStatus(resp1, resp2):
+def parseStatus(resp1, resp2, time):
     dictTemp1 = {}
     dictTemp2 = {}
     dictStatus = {}
@@ -153,6 +153,7 @@ def parseStatus(resp1, resp2):
     dictStatus['Threads_connected'] = int(dictTemp2['Threads_connected']) - int(dictTemp1['Threads_connected'])
     dictStatus['Threads_created'] = int(dictTemp2['Threads_created']) - int(dictTemp1['Threads_created'])
 
+    dictStatus['status_time'] = time
     return dictStatus
 
 
@@ -201,17 +202,14 @@ def probe(i, queue):
     sql = PROBE_SQL_LIST[i]
     conn, cursor = mysql.getCursor()
     try:
-        cursor.execute("show global status")
-        statusResp1 = cursor.fetchall()
-
-        time.sleep(1)
-        cursor.execute("show global status")
-        statusResp2 = cursor.fetchall()
-
         # 记录explain结果
         explainSql = "explain " + sql
         cursor.execute(explainSql)
         explainResp = cursor.fetchall()
+
+        cursor.execute("show global status")
+        statusResp1 = cursor.fetchall()
+        statusTimeBegin = time.time()
 
         # 记录profile结果
         cursor.execute("SET profiling=1;")
@@ -219,8 +217,15 @@ def probe(i, queue):
         cursor.execute("show profile;")
         profileResp = cursor.fetchall()
 
+        statusTimeEnd = time.time()
+        cursor.execute("show global status")
+        statusResp2 = cursor.fetchall()
+        
+
+        statusTime = statusTimeEnd - statusTimeBegin
+
         # 打包所有结果
-        result_packer(i, statusResp1, statusResp2, explainResp, profileResp, queue)
+        result_packer(i, statusResp1, statusResp2, explainResp, profileResp, statusTime, queue)
     except Exception:
         logger.debug(Exception.with_traceback())
         conn.rollback()
@@ -230,11 +235,11 @@ def probe(i, queue):
 
 
 # 打包器
-def result_packer(i, statusResp1, statusResp2, explainResp, profileResp, queue):
+def result_packer(i, statusResp1, statusResp2, explainResp, profileResp, statusTime, queue):
     result = {}
     content = {}
 
-    dictStatus = parseStatus(statusResp1, statusResp2)
+    dictStatus = parseStatus(statusResp1, statusResp2, statusTime)
     content = dictStatus
 
     dictExplain = parseExplain(explainResp)

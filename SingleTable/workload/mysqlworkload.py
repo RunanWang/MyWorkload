@@ -7,14 +7,14 @@ class MysqlWorkload(object):
         ################################################
         # 下面配置每一种workload在每隔多少个时间单位执行1次
         ################################################
-        # self.workload['workload_insert'] = self.set_workload(wait_time_exp = 0, wait_time_var = 1)
-        self.workload['workload_updateByID'] = self.set_workload(wait_time_exp = 2)
-        # self.workload['workload_delete'] = self.set_workload(wait_time_exp = 20)
+        self.workload['workload_insert'] = self.set_workload(wait_time_exp = 0.25, wait_time_var = 0.05)
+        self.workload['workload_updateByID'] = self.set_workload(wait_time_exp = 0.1, wait_time_var = 0.02)
+        self.workload['workload_delete'] = self.set_workload(wait_time_exp = 1, wait_time_var = 0.05)
 
-        self.workload['workload_countTotal'] = self.set_workload(wait_time_exp = 0.02)
-        self.workload['workload_searchByID'] = self.set_workload(wait_time_exp = 0.02)
-        self.workload['workload_searchF2'] = self.set_workload(wait_time_exp = 0.02)
-        self.workload['workload_searchCountPerCity'] = self.set_workload(wait_time_exp = 2)
+        self.workload['workload_countTotal'] = self.set_workload(wait_time_exp = 0.02, wait_time_var = 0.01)
+        self.workload['workload_searchByID'] = self.set_workload(wait_time_exp = 0.02, wait_time_var = 0.01)
+        self.workload['workload_searchF2'] = self.set_workload(wait_time_exp = 0.02, wait_time_var = 0.01)
+        self.workload['workload_searchCountPerCity'] = self.set_workload(wait_time_exp = 0.02, wait_time_var = 0.01)
 
     def get_workload(self):
         return self.workload
@@ -46,7 +46,8 @@ class MysqlWorkload(object):
 
     # 更改一条记录(FIELD_09)
     def workload_updateByID(self):
-        sql = """UPDATE TEST SET FIELD_09 = FIELD_09 + 1 where T_ID = (select a.count from (SELECT count(*) as count from TEST) as a)""" 
+        sql = """UPDATE TEST SET FIELD_09 = """
+        sql = sql + str(myRand.number(constant.MIN_BIG_INT,constant.MAX_BIG_INT)) + """ where T_ID = (select a.count from (SELECT count(*) as count from TEST) as a)"""
         return sql
 
     # 记录总数
@@ -56,17 +57,19 @@ class MysqlWorkload(object):
 
     # 按ID查找(唯一的索引)
     def workload_searchByID(self):
-        sql = "select * from TEST where T_ID = " + str(myRand.number(1,100))
+        sql = "select * from TEST where T_ID = " + str(myRand.number(1,1000))
         return sql
 
     # 查城市
     def workload_searchCountPerCity(self):
-        sql = "select FIELD_07, CAST (sum(1) AS CHAR) from TEST group by FIELD_07"
+        sql = "select FIELD_07, CAST(sum(1) AS CHAR) from TEST group by FIELD_07"
         return sql
 
     # 查字符串-like
     def workload_searchF1(self):
-        sql = "select * from TEST where FIELD_01 LIKE '%A%'"
+        sql = "select * from TEST where FIELD_01 LIKE '%"
+        randomChar = myRand.randomChar('A', 26)
+        sql = sql + randomChar + "%'"
         return sql
 
     # 查字符串-distinct
@@ -76,5 +79,7 @@ class MysqlWorkload(object):
     
     # 删
     def workload_delete(self):
-        sql = "delete from TEST where T_ID = ((select a.T_ID from (SELECT T_ID from TEST where FIELD_01 LIKE '%A%' AND T_ID > 200 LIMIT 1) as a))"
+        sql = "delete from TEST where T_ID = ((select a.T_ID from (SELECT T_ID from TEST where FIELD_01 LIKE '%"
+        randomChar = myRand.randomChar('A', 26)
+        sql = sql + randomChar + "%' AND T_ID > 2000 LIMIT 1) as a))"
         return sql

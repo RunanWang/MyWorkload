@@ -13,6 +13,10 @@ def randomString(minimum_length, maximum_length, base, numCharacters):
         string += chr(baseByte + number(0, numCharacters-1))
     return string
 
+def randomChar(base, numCharacters):
+    baseByte = ord(base)
+    return chr(baseByte + number(0, numCharacters-1))
+
 def randomCity(city):
     value = random.randint(0, len(city)-1)
     return city[value]
