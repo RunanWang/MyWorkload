@@ -1,12 +1,12 @@
-import utils.myLogger
-import utils.rand as rand
-import config.config as config
+from TPC.utils.myLogger import get_cmd_logger
+import TPC.utils.rand as rand
+import TPC.config.config as config
 import multiprocessing
 
 
 class Loader(object):
     def __init__(self, name):
-        self.logger = utils.myLogger.get_cmd_logger()
+        self.logger = get_cmd_logger()
         self.item_counter = multiprocessing.Value("i", 0, lock=True)
         driver_class = self.create_driver_class(name)
         self.driver = driver_class()
