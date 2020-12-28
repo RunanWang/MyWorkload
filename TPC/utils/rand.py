@@ -30,7 +30,7 @@
 # -----------------------------------------------------------------------
 
 import random
-import nurand
+# import utils.nurand as nurand
 
 SYLLABLES = [ "BAR", "OUGHT", "ABLE", "PRI", "PRES", "ESE", "ANTI", "CALLY", "ATION", "EING" ]
 
@@ -45,7 +45,7 @@ def NURand(a, x, y):
     global nurandVar
     assert x <= y
     if nurandVar is None:
-		setNURand(nurand.makeForLoad())
+        setNURand(makeForLoad())
     
     if a == 255:
         c = nurandVar.cLast
@@ -139,3 +139,32 @@ def makeRandomLastName(maxCID):
     if (maxCID - 1) < min_cid: min_cid = maxCID - 1
     return makeLastName(NURand(255, 0, min_cid))
 ## DEF
+
+def makeForLoad():
+    """Create random NURand constants, appropriate for loading the database."""
+    cLast = number(0, 255)
+    cId = number(0, 1023)
+    orderLineItemId = number(0, 8191)
+    return NURandC(cLast, cId, orderLineItemId)
+
+def validCRun(cRun, cLoad):
+    """Returns true if the cRun value is valid for running. See TPC-C 2.1.6.1 (page 20)"""
+    cDelta = abs(cRun - cLoad)
+    return 65 <= cDelta and cDelta <= 119 and cDelta != 96 and cDelta != 112
+
+def makeForRun(loadC):
+    """Create random NURand constants for running TPC-C. TPC-C 2.1.6.1. (page 20) specifies the valid range for these constants."""
+    cRun = number(0, 255)
+    while validCRun(cRun, loadC.cLast) == False:
+        cRun = number(0, 255)
+    assert validCRun(cRun, loadC.cLast)
+    
+    cId = number(0, 1023)
+    orderLineItemId = number(0, 8191)
+    return NURandC(cRun, cId, orderLineItemId)
+
+class NURandC:
+    def __init__(self, cLast, cId, orderLineItemId):
+        self.cLast = cLast
+        self.cId = cId
+        self.orderLineItemId = orderLineItemId
