@@ -129,3 +129,11 @@ dmypy.json
 
 # test
 test.py
+
+# idea
+/.idea/MyWorkload.iml
+/.idea/vcs.xml
+/.idea/modules.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/misc.xml
+/.idea/.gitignore

@@ -1,25 +1,29 @@
-from drivers.abstractdriver import *
-from config.mysql_config import *
-from utils.myLogger import getCMDLogger
-from dbutils.pooled_db import PooledDB
+from TPC.drivers.abstractdriver import AbstractDriver
+from TPC.utils.myLogger import get_cmd_logger
+from TPC.config.mysql_config import *
 
+from dbutils.pooled_db import PooledDB
 import pymysql
+
 
 class MysqlDriver(AbstractDriver):
     def __init__(self):
-        super(MysqlDriver,self).__init__("MySQL")
+        super(MysqlDriver, self).__init__("MySQL")
         self.__pool = None
-        self.logger = getCMDLogger()
-    
+        self.logger = get_cmd_logger()
+        conn, cursor = self.get_conn()
+        conn.close()
+        cursor.close()
+
     # 获取连接，无连接则创建连接池
-    def __getconn(self):
+    def __get_conn(self):
         if self.__pool is None:
             self.__pool = PooledDB(
                 creator=DB_CREATOR,
                 mincached=DB_MIN_CACHED,
                 maxcached=DB_MAX_CACHED,
                 maxshared=DB_MAX_SHARED,
-                maxconnections=DB_MAX_CONNECYIONS,
+                maxconnections=DB_MAX_CONNECTIONS,
                 blocking=DB_BLOCKING,
                 maxusage=DB_MAX_USAGE,
                 setsession=DB_SET_SESSION,
@@ -32,49 +36,55 @@ class MysqlDriver(AbstractDriver):
                 charset=DB_CHARSET
             )
             self.logger.info("Driver Pool Established!")
-        return self.__pool.connection(shareable = False)
+        return self.__pool.connection(shareable=False)
 
     # 释放连接池资源
     def close(self):
         self.logger.info("Driver Closed!")
         self.__pool.close()
-    
+
     # 从连接池中取出一个连接
-    def getconn(self):
-        conn = self.__getconn()
+    def get_conn(self):
+        conn = self.__get_conn()
         cursor = conn.cursor(DB_CURSOR_TYPE)
         return cursor, conn
 
+    # 从连接池中关闭连接
+    @staticmethod
+    def close_conn(cursor, conn):
+        cursor.close()
+        conn.close()
+
     # 从连接池外获取单个链接
-    def getCursor(self):
+    def get_cursor(self):
         conn = pymysql.connect(
-            host=DB_HOST, 
-            port=DB_PORT, 
-            user=DB_USER, 
-            password=DB_PASSWORD, 
-            database=DB_DBNAME, 
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_DBNAME,
             charset=DB_CHARSET
-            )
+        )
         cursor = conn.cursor(DB_CURSOR_TYPE)
         return conn, cursor
-    
-    def initDB(self):
-        """初始化数据库"""
+
+    # 初始化数据库
+    def init_db(self):
         try:
-            cursor, conn = self.getconn()
+            cursor, conn = self.get_conn()
             cursor.close()
             conn.close()
         except Exception as e:
-            raise(e)
+            raise e
 
-    def initTable(self, input):
-        """初始化表"""
+    # 初始化表
+    def init_table(self, init_ddl):
         self.logger.info("Start Database Initialization!")
-        conn, cursor = self.getCursor()
+        conn, cursor = self.get_cursor()
         try:
-            for sql in input:
+            for sql in init_ddl:
                 cursor.execute(sql)
-            self.logger.info("Database Initialization Successed!")
+            self.logger.info("Database Initialization Successes!")
         except Exception as e:
             self.logger.warn("Database Initialization Failed!")
             self.logger.warn(e)
@@ -84,12 +94,7 @@ class MysqlDriver(AbstractDriver):
 
     # 封装执行命令
     def execute(self, sql):
-        """
-        【主要判断是否有参数和是否执行完就释放连接】
-        :param sql: 字符串类型，sql语句
-        :return: 返回连接conn和游标cursor
-        """
-        cursor, conn = self.getconn()  # 从连接池获取连接
+        cursor, conn = self.get_conn()  # 从连接池获取连接
         count = 0
         try:
             # count : 为改变的数据条数
@@ -97,73 +102,70 @@ class MysqlDriver(AbstractDriver):
             conn.commit()
         except Exception as e:
             conn.rollback()
+            self.logger.warn(e)
         return cursor, conn, count
 
-    def closeConn(self, cursor, conn):
-        cursor.close()
-        conn.close()
-
     # get所有
-    def getall(self, input):
+    def fetch_all(self, fetch_input):
+        cursor, conn = None, None
         try:
-            cursor, conn, count = self.execute(input)
+            cursor, conn, count = self.execute(fetch_input)
             res = cursor.fetchall()
             return res
         except Exception as e:
             self.logger.warn(e)
-            return count
+            return -1
         finally:
-            self.closeConn(cursor, conn)
+            self.close_conn(cursor, conn)
 
     # 增加
-    def insert(self, tablename, input):
-        sql = "INSERT INTO " + tablename + " VALUES (\"" + str(input[0]) + '"'
-        for i in range(1, len(input)):
-            sql = sql + ", \"" + str(input[i]) + '"'
+    def insert(self, table_name, insert_input):
+        sql = "INSERT INTO " + table_name + " VALUES (\"" + str(insert_input[0]) + '"'
+        for i in range(1, len(insert_input)):
+            sql = sql + ", \"" + str(insert_input[i]) + '"'
         sql = sql + ");"
         # self.logger.debug(sql)
+        cursor, conn = None, None
         try:
             cursor, conn, count = self.execute(sql)
             return count
         except Exception as e:
-            self.logger.warn(e.with_traceback())
-            return count
+            self.logger.warn(e.with_traceback)
+            return -1
         finally:
-            self.closeConn(cursor, conn)
+            self.close_conn(cursor, conn)
 
     # 删除
-    def delete(self, input):
+    def delete(self, delete_input):
+        cursor, conn = None, None
         try:
-            cursor, conn, count = self.execute(input)
+            cursor, conn, count = self.execute(delete_input)
             return count
         except Exception as e:
             self.logger.warn(e)
-            return count
+            return -1
         finally:
-            self.closeConn(cursor, conn)
+            self.close_conn(cursor, conn)
 
     # 更新
-    def update(self, input):
+    def update(self, update_input):
+        cursor, conn = None, None
         try:
-            cursor, conn, count = self.execute(input)
+            cursor, conn, count = self.execute(update_input)
             return count
         except Exception as e:
             self.logger.warn(e)
-            return count
+            return -1
         finally:
-            self.closeConn(cursor, conn)
+            self.close_conn(cursor, conn)
 
     # 执行
-    def exec(self, input):
+    def exec(self, exec_input):
+        cursor, conn = None, None
         try:
-            cursor, conn, count = self.execute(input)
+            cursor, conn, count = self.execute(exec_input)
             return count
         except Exception as e:
-            try:
-                self.closeConn(cursor, conn)
-            except:
-                pass
-            self.logger.warn(e.with_traceback())
-            return -1
-
-        
+            self.close_conn(cursor, conn)
+            self.logger.warn(e.with_traceback)
+        return -1
