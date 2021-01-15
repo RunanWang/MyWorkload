@@ -2,9 +2,12 @@ CUST_PER_DIST = 3000  # 每个District有多少Customer
 DIST_PER_WARE = 10  # 每个Warehouse有多少District
 ORD_PER_DIST = 3000  # 每个District有多少的Order
 
-#  Item constants
+# 每一次插入的数目
 # NUM_ITEMS = 100000
 NUM_ITEMS = 10
+NUM_WAREHOUSE = 1
+
+#  Item constants
 MIN_IM = 1
 MAX_IM = 10000
 MIN_PRICE = 1.00
@@ -13,6 +16,25 @@ MIN_I_NAME = 14
 MAX_I_NAME = 24
 MIN_I_DATA = 26
 MAX_I_DATA = 50
+
+# warehouse
+INITIAL_W_YTD = 300000.00
+MIN_NAME = 6
+MAX_NAME = 10
+# TAX
+MIN_TAX = 0
+MAX_TAX = 0.2000
+TAX_DECIMALS = 4
+# ZIP
+ZIP_LENGTH = 9
+ZIP_SUFFIX = "11111"
+# street
+MIN_STREET = 10
+MAX_STREET = 20
+# city
+MIN_CITY = 10
+MAX_CITY = 20
+STATE = 2
 
 # Table Names
 TABLE_NAME_CUSTOMER = "CUSTOMER"
