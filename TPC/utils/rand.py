@@ -101,7 +101,7 @@ def makeLastName(number):
     """A last name as defined by TPC-C 4.3.2.3. Not actually random."""
     global SYLLABLES
     assert 0 <= number and number <= 999
-    indicies = [number / 100, (number / 10) % 10, number % 10]
+    indicies = [int(number / 100), int((number / 10) % 10), number % 10]
     return "".join(map(lambda x: SYLLABLES[x], indicies))
 
 
@@ -136,6 +136,14 @@ def makeForRun(loadC):
     cId = number(0, 1023)
     orderLineItemId = number(0, 8191)
     return NURandC(cRun, cId, orderLineItemId)
+
+
+def rand_bool(prob):
+    temp_rand_int = random.randint(1, 100)
+    if temp_rand_int <= prob:
+        return True
+    else:
+        return False
 
 
 class NURandC:

@@ -1,6 +1,8 @@
 from TPC.utils.myLogger import get_cmd_logger
 import TPC.utils.rand as rand
 import TPC.config.config as config
+
+from datetime import datetime
 import multiprocessing
 
 
@@ -50,43 +52,90 @@ class Loader(object):
         add_zip = self.generate_zip()
         return [name, street1, street2, city, state, add_zip]
 
-    # 生成Item插入内容
-    def generate_item(self, item_id, original):
+    def load_item(self, item_id: int):
+        """
+        向数据库中插入1条item_id的item，其中有10%的概率i-data为ORIGINAL。
+
+        :param item_id: item的ID
+        """
         i_id = item_id
         i_im_id = rand.number(config.MIN_IM, config.MAX_IM)
         i_name = rand.astring(config.MIN_I_NAME, config.MAX_I_NAME)
         i_price = rand.fixedPoint(config.MONEY_DECIMALS, config.MIN_PRICE, config.MAX_PRICE)
         i_data = rand.astring(config.MIN_I_DATA, config.MAX_I_DATA)
-        if original:
+        # Select 10% of the rows to be marked "original"
+        if rand.rand_bool(config.I_ORIGINAL_RATE):
             i_data = self.generate_original_string(i_data)
-        return [i_id, i_im_id, i_name, i_price, i_data]
+        item_detail = [i_id, i_im_id, i_name, i_price, i_data]
+        self.driver.insert(config.TABLE_NAME_ITEM, item_detail)
 
-    def generate_warehouse(self, w_id):
+    def load_warehouse(self, warehouse_id: int):
+        """
+        向数据库中插入1条warehouse_id的WAREHOUSE。
+
+        :param warehouse_id: warehouse的ID
+        """
         w_tax = self.generate_tax()
         w_ytd = config.INITIAL_W_YTD
         w_address = self.generate_address()
-        return [w_id] + w_address + [w_tax, w_ytd]
+        warehouse_detail = [[warehouse_id] + w_address + [w_tax, w_ytd]]
+        self.driver.insert(config.TABLE_NAME_WAREHOUSE, warehouse_detail)
 
-    # 从start_id开始，向数据库中插入config.NUM_ITEMS条item。
-    def load_items(self, start_id):
-        # Select 10% of the rows to be marked "original"
-        original_rows = rand.selectUniqueIds(int(config.NUM_ITEMS / 10), 1, config.NUM_ITEMS)
-        # Load all of the items
-        for i in range(1, config.NUM_ITEMS + 1):
-            original = (i in original_rows)
-            item_detail = self.generate_item(i + start_id, original)
-            if i % 100 == 0 or i == config.NUM_ITEMS:
-                self.logger.debug("LOAD - %s: %d / %d" % (config.TABLE_NAME_ITEM, i, config.NUM_ITEMS))
-            self.driver.insert(config.TABLE_NAME_ITEM, item_detail)
+    def load_district(self, d_w_id: int, d_id: int, d_next_o_id: int):
+        """
+        插入一条District
 
-    # 从start_id开始，向数据库中插入config.NUM_WAREHOUSE条WAREHOUSE。
-    def load_warehouse(self, start_id):
-        for i in range(1, config.NUM_WAREHOUSE + 1):
-            warehouse_detail = self.generate_warehouse(start_id)
-            self.driver.insert(config.TABLE_NAME_WAREHOUSE, warehouse_detail)
+        :param d_w_id: Warehouse-ID
+        :param d_id: District-ID
+        :param d_next_o_id: Next_Order_ID, Default: CustomerPerDistrict
+        """
+        d_tax = self.generate_tax()
+        d_ytd = config.D_INITIAL_YTD
+        d_address = self.generate_address()
+        district_detail = [[d_id, d_w_id] + d_address + [d_tax, d_ytd, d_next_o_id]]
+        self.driver.insert(config.TABLE_NAME_DISTRICT, district_detail)
+
+    def load_customer(self, c_w_id: int, c_d_id: int, c_id: int, bad_credit: bool):
+        """
+        插入一条 Customer
+
+        :param c_w_id: WarehouseID of Customer
+        :param c_d_id: DistrictID of Customer
+        :param c_id: CustomerID
+        :param bad_credit: Whether Customer is bad-credit
+        """
+        c_first = rand.astring(config.MIN_FIRST, config.MAX_FIRST)
+        c_middle = config.MIDDLE
+        # 一部分是随机，一部分是伪随机
+        if c_id <= 1000:
+            c_last = rand.makeLastName(c_id - 1)
+        else:
+            c_last = rand.makeRandomLastName(config.CUSTOMERS_PER_DISTRICT)
+        # 详细信息
+        c_phone = rand.nstring(config.PHONE, config.PHONE)
+        c_since = datetime.now()
+        c_credit = config.BAD_CREDIT if bad_credit else config.GOOD_CREDIT
+        c_credit_lim = config.INITIAL_CREDIT_LIM
+        c_discount = rand.fixedPoint(config.DISCOUNT_DECIMALS, config.MIN_DISCOUNT, config.MAX_DISCOUNT)
+        c_balance = config.INITIAL_BALANCE
+        c_ytd_payment = config.INITIAL_YTD_PAYMENT
+        c_payment_cnt = config.INITIAL_PAYMENT_CNT
+        c_delivery_cnt = config.INITIAL_DELIVERY_CNT
+        c_data = rand.astring(config.MIN_C_DATA, config.MAX_C_DATA)
+        # 地址信息
+        c_street1 = rand.astring(config.MIN_STREET, config.MAX_STREET)
+        c_street2 = rand.astring(config.MIN_STREET, config.MAX_STREET)
+        c_city = rand.astring(config.MIN_CITY, config.MAX_CITY)
+        c_state = rand.astring(config.STATE, config.STATE)
+        c_zip = self.generate_zip()
+        # 生成并插入
+        c_detail = [c_id, c_d_id, c_w_id, c_first, c_middle, c_last, c_street1, c_street2, c_city, c_state, c_zip,
+                    c_phone, c_since, c_credit, c_credit_lim, c_discount, c_balance, c_ytd_payment, c_payment_cnt,
+                    c_delivery_cnt, c_data]
+        self.driver.insert(config.TABLE_NAME_CUSTOMER, c_detail)
 
     def monitor(self):
-        self.load_items(self.item_counter.value)
+        self.load_item(self.item_counter.value)
         self.item_counter.value += config.NUM_ITEMS
         self.load_warehouse(self.warehouse_counter.value)
         self.warehouse_counter.value += config.NUM_WAREHOUSE
