@@ -3,8 +3,8 @@ DIST_PER_WARE = 10  # 每个Warehouse有多少District
 ORD_PER_DIST = 3000  # 每个District有多少的Order
 
 # 每一次插入的数目
-# NUM_ITEMS = 100000
-NUM_ITEMS = 10
+NUM_ITEMS = 100000
+# NUM_ITEMS = 10
 NUM_WAREHOUSE = 1
 
 #  Item constants

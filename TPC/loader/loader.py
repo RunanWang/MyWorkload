@@ -220,6 +220,13 @@ class Loader(object):
         no_detail = [o_id, d_id, w_id]
         self.driver.insert(config.TABLE_NAME_NEW_ORDER, no_detail)
 
+    def monitor_item(self):
+        for item_id in range(1, config.NUM_ITEMS + 1):
+            self.load_item(item_id)
+            if item_id % 1000 == 0:
+                self.logger.info("Load num of items: " + str(item_id))
+        self.logger.info("Load of items finished!")
+
     def monitor(self):
         self.load_item(self.item_counter.value)
         self.item_counter.value += config.NUM_ITEMS
