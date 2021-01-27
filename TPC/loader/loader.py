@@ -134,6 +134,92 @@ class Loader(object):
                     c_delivery_cnt, c_data]
         self.driver.insert(config.TABLE_NAME_CUSTOMER, c_detail)
 
+    def load_history(self, h_c_w_id: int, h_c_d_id: int, h_c_id: int):
+        """
+        插入一条 History
+
+        :param h_c_w_id: warehouse-ID
+        :param h_c_d_id: district-ID
+        :param h_c_id: customer-ID
+        """
+        h_w_id = h_c_w_id
+        h_d_id = h_c_d_id
+        h_date = datetime.now()
+        h_amount = config.H_INITIAL_AMOUNT
+        h_data = rand.astring(config.H_MIN_DATA, config.H_MAX_DATA)
+        h_detail = [h_c_id, h_c_d_id, h_c_w_id, h_d_id, h_w_id, h_date, h_amount, h_data]
+        self.driver.insert(config.TABLE_NAME_HISTORY, h_detail)
+
+    def load_stock(self, s_w_id: int, s_i_id: int):
+        """
+        插入一条 Stock
+
+        :param s_w_id: warehouse-ID
+        :param s_i_id: Item_ID
+        """
+        s_quantity = rand.number(config.S_MIN_QUANTITY, config.S_MAX_QUANTITY)
+        s_ytd = 0
+        s_order_cnt = 0
+        s_remote_cnt = 0
+        s_data = rand.astring(config.MIN_I_DATA, config.MAX_I_DATA)
+
+        # Select 10% of the stock to be marked "original"
+        if rand.rand_bool(config.S_ORIGINAL_RATE):
+            s_data = self.generate_original_string(s_data)
+
+        s_dists = []
+        for i in range(0, config.DIST_PER_WARE):
+            s_dists.append(rand.astring(config.S_DIST, config.S_DIST))
+
+        s_detail = [s_i_id, s_w_id, s_quantity] + s_dists + [s_ytd, s_order_cnt, s_remote_cnt, s_data]
+        self.driver.insert(config.TABLE_NAME_STOCK, s_detail)
+
+    def load_order(self, o_w_id: int, o_d_id: int, o_id: int, o_c_id: int, o_ol_cnt: int, new_order: bool):
+        """
+
+        :param o_w_id: warehouse-ID
+        :param o_d_id: District-ID
+        :param o_id: Order-ID
+        :param o_c_id: Customer-ID
+        :param o_ol_cnt: Orderline-Count
+        :param new_order:
+        """
+        o_entry_d = datetime.now()
+        if new_order:
+            o_carrier_id = config.NULL_CARRIER_ID
+        else:
+            o_carrier_id = rand.number(config.MIN_CARRIER_ID, config.MAX_CARRIER_ID)
+        o_all_local = config.INITIAL_ALL_LOCAL
+        o_detail = [o_id, o_c_id, o_d_id, o_w_id, o_entry_d, o_carrier_id, o_ol_cnt, o_all_local]
+        self.driver.insert(config.TABLE_NAME_ORDERS, o_detail)
+
+    def load_order_line(self, ol_w_id, ol_d_id, ol_o_id, ol_number, max_items, new_order):
+        ol_i_id = rand.number(1, max_items)
+        ol_supply_w_id = ol_w_id
+        ol_delivery_d = datetime.now()
+        ol_quantity = config.INITIAL_QUANTITY
+
+        # 1% of items are from a remote warehouse
+        remote = (rand.number(1, 100) == 1)
+        if remote:
+            ol_supply_w_id = rand.numberExcluding(1, self.warehouse_counter.value, ol_w_id)
+
+        if not new_order:
+            ol_amount = 0.00
+        else:
+            ol_amount = rand.fixedPoint(config.MONEY_DECIMALS, config.MIN_AMOUNT,
+                                        config.MAX_PRICE * config.MAX_OL_QUANTITY)
+            ol_delivery_d = None
+        ol_dist_info = rand.astring(config.S_DIST, config.S_DIST)
+
+        ol_detail = [ol_o_id, ol_d_id, ol_w_id, ol_number, ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity,
+                     ol_amount, ol_dist_info]
+        self.driver.insert(config.TABLE_NAME_ORDER_LINE, ol_detail)
+
+    def load_new_order(self, o_id, d_id, w_id):
+        no_detail = [o_id, d_id, w_id]
+        self.driver.insert(config.TABLE_NAME_NEW_ORDER, no_detail)
+
     def monitor(self):
         self.load_item(self.item_counter.value)
         self.item_counter.value += config.NUM_ITEMS

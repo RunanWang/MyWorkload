@@ -59,6 +59,35 @@ MAX_C_DATA = 500
 GOOD_CREDIT = "GC"
 BAD_CREDIT = "BC"
 
+#  History constants
+H_MIN_DATA = 12
+H_MAX_DATA = 24
+H_INITIAL_AMOUNT = 10.00
+
+#  Stock constants
+S_MIN_QUANTITY = 10
+S_MAX_QUANTITY = 100
+S_DIST = 24
+STOCK_PER_WAREHOUSE = 100000
+S_ORIGINAL_RATE = 10  # ORIGINAL字符的百分数
+
+#  Order constants
+MIN_CARRIER_ID = 1
+MAX_CARRIER_ID = 10
+#  HACK: This is not strictly correct, but it works
+NULL_CARRIER_ID = 0
+#  o_id < than this value, carrier != null, >= -> carrier == null
+NULL_CARRIER_LOWER_BOUND = 2101
+MIN_OL_CNT = 5
+MAX_OL_CNT = 15
+INITIAL_ALL_LOCAL = 1
+INITIAL_ORDERS_PER_DISTRICT = 3000
+
+#  Order line constants
+INITIAL_QUANTITY = 5
+MIN_AMOUNT = 0.01
+MAX_OL_QUANTITY = 10
+
 # Table Names
 TABLE_NAME_CUSTOMER = "CUSTOMER"
 TABLE_NAME_DISTRICT = "DISTRICT"
