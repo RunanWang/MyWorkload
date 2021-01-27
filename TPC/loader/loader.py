@@ -3,13 +3,13 @@ import TPC.utils.rand as rand
 import TPC.config.config as config
 
 from datetime import datetime
+from random import shuffle
 import multiprocessing
 
 
 class Loader(object):
     def __init__(self, name):
         self.logger = get_cmd_logger()
-        self.item_counter = multiprocessing.Value("i", 0, lock=True)
         self.warehouse_counter = multiprocessing.Value("i", 0, lock=True)
         driver_class = self.create_driver_class(name)
         self.driver = driver_class()
@@ -81,28 +81,27 @@ class Loader(object):
         warehouse_detail = [[warehouse_id] + w_address + [w_tax, w_ytd]]
         self.driver.insert(config.TABLE_NAME_WAREHOUSE, warehouse_detail)
 
-    def load_district(self, d_w_id: int, d_id: int, d_next_o_id: int):
+    def load_district(self, d_w_id: int, d_id: int):
         """
         插入一条District
 
         :param d_w_id: Warehouse-ID
         :param d_id: District-ID
-        :param d_next_o_id: Next_Order_ID, Default: CustomerPerDistrict
         """
+        d_next_o_id = config.CUST_PER_DIST + 1
         d_tax = self.generate_tax()
         d_ytd = config.D_INITIAL_YTD
         d_address = self.generate_address()
         district_detail = [[d_id, d_w_id] + d_address + [d_tax, d_ytd, d_next_o_id]]
         self.driver.insert(config.TABLE_NAME_DISTRICT, district_detail)
 
-    def load_customer(self, c_w_id: int, c_d_id: int, c_id: int, bad_credit: bool):
+    def load_customer(self, c_w_id: int, c_d_id: int, c_id: int):
         """
         插入一条 Customer
 
         :param c_w_id: WarehouseID of Customer
         :param c_d_id: DistrictID of Customer
         :param c_id: CustomerID
-        :param bad_credit: Whether Customer is bad-credit
         """
         c_first = rand.astring(config.MIN_FIRST, config.MAX_FIRST)
         c_middle = config.MIDDLE
@@ -114,7 +113,7 @@ class Loader(object):
         # 详细信息
         c_phone = rand.nstring(config.PHONE, config.PHONE)
         c_since = datetime.now()
-        c_credit = config.BAD_CREDIT if bad_credit else config.GOOD_CREDIT
+        c_credit = config.BAD_CREDIT if rand.rand_bool(config.C_BAD_CREDIT_RATE) else config.GOOD_CREDIT
         c_credit_lim = config.INITIAL_CREDIT_LIM
         c_discount = rand.fixedPoint(config.DISCOUNT_DECIMALS, config.MIN_DISCOUNT, config.MAX_DISCOUNT)
         c_balance = config.INITIAL_BALANCE
@@ -227,13 +226,55 @@ class Loader(object):
                 self.logger.info("Load num of items: " + str(item_id))
         self.logger.info("Load of items finished!")
 
-    def monitor(self):
-        self.load_item(self.item_counter.value)
-        self.item_counter.value += config.NUM_ITEMS
-        self.load_warehouse(self.warehouse_counter.value)
-        self.warehouse_counter.value += config.NUM_WAREHOUSE
+    def monitor_warehouse(self, warehouse_id):
+        # 添加一个warehouse
+        self.load_warehouse(warehouse_id)
+        # Stock
+        for item_id in range(1, config.NUM_ITEMS + 1):
+            self.load_stock(warehouse_id, item_id)
+            if item_id % 1000 == 0:
+                self.logger.info("Load of Stock of Warehouse" + str(warehouse_id) + ": " + str(item_id) + "/" + str(
+                    config.NUM_ITEMS))
+
+        # District/customer/history/order
+        for district_id in range(1, config.DIST_PER_WARE + 1):
+            self.load_district(warehouse_id, district_id)
+
+            # customer和history
+            c_id_permutation = []
+            for customer_id in range(1, config.CUST_PER_DIST + 1):
+                self.load_customer(warehouse_id, district_id, customer_id)
+                self.load_history(warehouse_id, district_id, customer_id)
+                c_id_permutation.append(customer_id)
+                if customer_id % 1000 == 0:
+                    self.logger.info("Load of Customer of District" + str(district_id) + " of Warehouse" + str(
+                        warehouse_id) + ": " + str(customer_id) + "/" + str(config.CUST_PER_DIST))
+
+            self.logger.info("Load of Customer of District" + str(district_id) + " of Warehouse" + str(
+                warehouse_id) + " has been done!")
+
+            shuffle(c_id_permutation)
+
+            # Order、Order-line以及New-Order
+            for order_id in range(1, config.CUST_PER_DIST + 1):
+                new_order = ((config.CUST_PER_DIST - config.NEW_ORDERS_PER_DISTRICT) < order_id)
+                order_line_count = rand.number(config.MIN_OL_CNT, config.MAX_OL_CNT)
+                self.load_order(warehouse_id, district_id, order_id, c_id_permutation[order_id], order_line_count,
+                                new_order)
+                for order_line_number in range(0, order_line_count):
+                    self.load_order_line(warehouse_id, district_id, order_id, order_line_number, config.NUM_ITEMS,
+                                         new_order)
+                if new_order:
+                    self.load_new_order(order_id, district_id, warehouse_id)
+
+                if order_id % 500 == 0:
+                    self.logger.info("Load of Order of District" + str(district_id) + " of Warehouse" + str(
+                        warehouse_id) + ": " + str(order_id) + "/" + str(config.CUST_PER_DIST))
+
+            self.logger.info(
+                "Load of District" + str(district_id) + " of Warehouse" + str(warehouse_id) + " has been done!")
+        self.logger.info("Load of Warehouse" + str(warehouse_id) + " has been done!")
 
 
 if __name__ == "__main__":
     loader = Loader("mysql")
-    loader.monitor()
