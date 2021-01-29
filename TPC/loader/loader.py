@@ -78,7 +78,7 @@ class Loader(object):
         w_tax = self.generate_tax()
         w_ytd = config.INITIAL_W_YTD
         w_address = self.generate_address()
-        warehouse_detail = [[warehouse_id] + w_address + [w_tax, w_ytd]]
+        warehouse_detail = [warehouse_id] + w_address + [w_tax, w_ytd]
         self.driver.insert(config.TABLE_NAME_WAREHOUSE, warehouse_detail)
 
     def load_district(self, d_w_id: int, d_id: int):
@@ -92,7 +92,7 @@ class Loader(object):
         d_tax = self.generate_tax()
         d_ytd = config.D_INITIAL_YTD
         d_address = self.generate_address()
-        district_detail = [[d_id, d_w_id] + d_address + [d_tax, d_ytd, d_next_o_id]]
+        district_detail = [d_id, d_w_id] + d_address + [d_tax, d_ytd, d_next_o_id]
         self.driver.insert(config.TABLE_NAME_DISTRICT, district_detail)
 
     def load_customer(self, c_w_id: int, c_d_id: int, c_id: int):
@@ -189,7 +189,7 @@ class Loader(object):
         else:
             o_carrier_id = rand.number(config.MIN_CARRIER_ID, config.MAX_CARRIER_ID)
         o_all_local = config.INITIAL_ALL_LOCAL
-        o_detail = [o_id, o_c_id, o_d_id, o_w_id, o_entry_d, o_carrier_id, o_ol_cnt, o_all_local]
+        o_detail = [o_id, o_d_id, o_w_id, o_c_id, o_entry_d, o_carrier_id, o_ol_cnt, o_all_local]
         self.driver.insert(config.TABLE_NAME_ORDERS, o_detail)
 
     def load_order_line(self, ol_w_id, ol_d_id, ol_o_id, ol_number, max_items, new_order):
@@ -201,14 +201,17 @@ class Loader(object):
         # 1% of items are from a remote warehouse
         remote = (rand.number(1, 100) == 1)
         if remote:
-            ol_supply_w_id = rand.numberExcluding(1, self.warehouse_counter.value, ol_w_id)
+            if self.warehouse_counter.value == 0:
+                ol_supply_w_id = 1
+            else:
+                ol_supply_w_id = rand.numberExcluding(1, self.warehouse_counter.value + 1, ol_w_id)
 
         if not new_order:
             ol_amount = 0.00
         else:
             ol_amount = rand.fixedPoint(config.MONEY_DECIMALS, config.MIN_AMOUNT,
                                         config.MAX_PRICE * config.MAX_OL_QUANTITY)
-            ol_delivery_d = None
+            # ol_delivery_d = None
         ol_dist_info = rand.astring(config.S_DIST, config.S_DIST)
 
         ol_detail = [ol_o_id, ol_d_id, ol_w_id, ol_number, ol_i_id, ol_supply_w_id, ol_delivery_d, ol_quantity,
@@ -259,7 +262,7 @@ class Loader(object):
             for order_id in range(1, config.CUST_PER_DIST + 1):
                 new_order = ((config.CUST_PER_DIST - config.NEW_ORDERS_PER_DISTRICT) < order_id)
                 order_line_count = rand.number(config.MIN_OL_CNT, config.MAX_OL_CNT)
-                self.load_order(warehouse_id, district_id, order_id, c_id_permutation[order_id], order_line_count,
+                self.load_order(warehouse_id, district_id, order_id, c_id_permutation[order_id - 1], order_line_count,
                                 new_order)
                 for order_line_number in range(0, order_line_count):
                     self.load_order_line(warehouse_id, district_id, order_id, order_line_number, config.NUM_ITEMS,

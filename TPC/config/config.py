@@ -1,7 +1,7 @@
 CUST_PER_DIST = 3000  # 每个District有多少Customer
 DIST_PER_WARE = 10  # 每个Warehouse有多少District
 ORD_PER_DIST = 3000  # 每个District有多少的Order
-NEW_ORDERS_PER_DISTRICT = 9000
+NEW_ORDERS_PER_DISTRICT = 900
 # 每一次插入的数目
 NUM_ITEMS = 100000
 # NUM_ITEMS = 10
