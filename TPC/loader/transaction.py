@@ -102,8 +102,8 @@ class Transaction(object):
         o_carrier_id = rand.number(config.MIN_CARRIER_ID, config.MAX_CARRIER_ID)
         ol_delivery_d = datetime.now()
         result = []
-        cursor, conn = self.driver.get_conn()
         for district_id in range(1, config.DIST_PER_WARE + 1):
+            cursor, conn = self.driver.get_conn()
             # get New-Order
             sql = "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = " + str(district_id) + " AND NO_W_ID = " + str(
                 warehouse_id) + " AND NO_O_ID > -1 LIMIT 1"
@@ -174,5 +174,5 @@ class Transaction(object):
                 continue
 
             result.append((district_id, no_order_id))
-            self.driver.transaction_commit()
+            self.driver.transaction_commit(cursor, conn)
         return result
