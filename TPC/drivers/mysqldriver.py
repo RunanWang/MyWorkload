@@ -182,3 +182,29 @@ class MysqlDriver(AbstractDriver):
             self.close_conn(cursor, conn)
             self.logger.warn(e.with_traceback)
         return -1
+
+    def transaction_exec(self, cursor, conn, sql, para=None):
+        try:
+            if para is not None:
+                cursor.execute(sql, para)
+            else:
+                cursor.execute(sql)
+        except Exception as e:
+            self.logger.warn(e)
+            conn.rollback()
+            self.close_conn(cursor, conn)
+            raise e
+
+    def transaction_fetchone(self, cursor, conn, sql):
+        try:
+            cursor.execute(sql)
+            return cursor.fetchone()
+        except Exception as e:
+            self.logger.warn(e)
+            conn.rollback()
+            self.close_conn(cursor, conn)
+            raise e
+
+    def transaction_commit(self, cursor, conn):
+        conn.commit()
+        self.close_conn(cursor, conn)

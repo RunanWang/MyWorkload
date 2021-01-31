@@ -107,8 +107,11 @@ class Transaction(object):
             # get New-Order
             sql = "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = " + str(district_id) + " AND NO_W_ID = " + str(
                 warehouse_id) + " AND NO_O_ID > -1 LIMIT 1"
-            cursor.execute(sql)
-            new_order = cursor.fetchone()
+            try:
+                new_order = self.driver.transaction_fetchone(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                continue
             if new_order is None:
                 # No orders for this district: skip it. Note: This must be reported if > 1%
                 continue
@@ -118,35 +121,58 @@ class Transaction(object):
             sql = "SELECT O_C_ID FROM ORDERS WHERE O_ID = " + str(no_order_id) + " AND O_D_ID = " + str(
                 district_id) + " AND O_W_ID = " + str(warehouse_id)
             cursor.execute(sql)
+            try:
+                self.driver.transaction_exec(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                continue
             customer_id = cursor.fetchone()['O_C_ID']
 
             # sum OrderLine Amount
             sql = "SELECT SUM(OL_AMOUNT) FROM ORDER_LINE WHERE OL_O_ID = " + str(no_order_id) + " AND OL_D_ID = " + str(
                 district_id) + " AND OL_W_ID = " + str(warehouse_id)
-            cursor.execute(sql)
-            order_line_total = cursor.fetchone()['SUM(OL_AMOUNT)']
+            try:
+                order_line_total = self.driver.transaction_fetchone(cursor, conn, sql)['SUM(OL_AMOUNT)']
+            except Exception as e:
+                self.logger.warn(e)
+                continue
 
             # delete New-Order
             sql = "DELETE FROM NEW_ORDER WHERE NO_D_ID = " + str(district_id) + " AND NO_W_ID = " + str(
                 warehouse_id) + " AND NO_O_ID = " + str(no_order_id)
-            cursor.execute(sql)
+            try:
+                self.driver.transaction_exec(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                continue
 
             # update Orders
             sql = "UPDATE ORDERS SET O_CARRIER_ID = " + str(o_carrier_id) + " WHERE O_ID = " + str(
                 no_order_id) + " AND O_D_ID = " + str(district_id) + " AND O_W_ID = " + str(warehouse_id)
-            cursor.execute(sql)
+            try:
+                self.driver.transaction_exec(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                continue
 
             # update OrderLine
             sql = "UPDATE ORDER_LINE SET OL_DELIVERY_D = %s"  + " WHERE OL_O_ID = " + str(
                 no_order_id) + " AND OL_D_ID = " + str(district_id) + " AND OL_W_ID = " + str(warehouse_id)
-            cursor.execute(sql, [ol_delivery_d])
+            try:
+                self.driver.transaction_exec(cursor, conn, sql, [ol_delivery_d])
+            except Exception as e:
+                self.logger.warn(e)
+                continue
 
             # update Customer
             sql = "UPDATE CUSTOMER SET C_BALANCE = C_BALANCE + " + str(order_line_total) + " WHERE C_ID = " + str(
                 customer_id) + " AND C_D_ID = " + str(district_id) + " AND C_W_ID = " + str(warehouse_id)
-            cursor.execute(sql)
+            try:
+                self.driver.transaction_exec(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                continue
 
             result.append((district_id, no_order_id))
-        conn.commit()
-        self.driver.close_conn(cursor, conn)
+            self.driver.transaction_commit()
         return result
