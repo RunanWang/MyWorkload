@@ -107,7 +107,8 @@ class Transaction(object):
             # get New-Order
             sql = "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = " + str(district_id) + " AND NO_W_ID = " + str(
                 warehouse_id) + " AND NO_O_ID > -1 LIMIT 1"
-            new_order = cursor.fetch_one(sql)
+            cursor.execute(sql)
+            new_order = cursor.fetchone()
             if new_order is None:
                 # No orders for this district: skip it. Note: This must be reported if > 1%
                 continue
@@ -116,12 +117,14 @@ class Transaction(object):
             # get Customer ID
             sql = "SELECT O_C_ID FROM ORDERS WHERE O_ID = " + str(no_order_id) + " AND O_D_ID = " + str(
                 district_id) + " AND O_W_ID = " + str(warehouse_id)
-            customer_id = cursor.fetch_one(sql)['O_C_ID']
+            cursor.execute(sql)
+            customer_id = cursor.fetchone()['O_C_ID']
 
             # sum OrderLine Amount
             sql = "SELECT SUM(OL_AMOUNT) FROM ORDER_LINE WHERE OL_O_ID = " + str(no_order_id) + " AND OL_D_ID = " + str(
                 district_id) + " AND OL_W_ID = " + str(warehouse_id)
-            order_line_total = cursor.fetch_one(sql)['SUM(OL_AMOUNT)']
+            cursor.execute(sql)
+            order_line_total = cursor.fetchone()['SUM(OL_AMOUNT)']
 
             # delete New-Order
             sql = "DELETE FROM NEW_ORDER WHERE NO_D_ID = " + str(district_id) + " AND NO_W_ID = " + str(
@@ -134,9 +137,9 @@ class Transaction(object):
             cursor.execute(sql)
 
             # update OrderLine
-            sql = "UPDATE ORDER_LINE SET OL_DELIVERY_D = " + str(ol_delivery_d) + " WHERE OL_O_ID = " + str(
+            sql = "UPDATE ORDER_LINE SET OL_DELIVERY_D = %s"  + " WHERE OL_O_ID = " + str(
                 no_order_id) + " AND OL_D_ID = " + str(district_id) + " AND OL_W_ID = " + str(warehouse_id)
-            cursor.execute(sql)
+            cursor.execute(sql, [ol_delivery_d])
 
             # update Customer
             sql = "UPDATE CUSTOMER SET C_BALANCE = C_BALANCE + " + str(order_line_total) + " WHERE C_ID = " + str(
