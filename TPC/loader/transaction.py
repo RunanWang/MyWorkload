@@ -5,39 +5,6 @@ import TPC.config.config as config
 from datetime import datetime
 
 TXN_QUERIES = {
-    "DELIVERY": {
-        "getNewOrder": "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = ? AND NO_W_ID = ? AND NO_O_ID > -1 LIMIT 1",  #
-        "deleteNewOrder": "DELETE FROM NEW_ORDER WHERE NO_D_ID = ? AND NO_W_ID = ? AND NO_O_ID = ?",
-        # d_id, w_id, no_o_id
-        "getCId": "SELECT O_C_ID FROM ORDERS WHERE O_ID = ? AND O_D_ID = ? AND O_W_ID = ?",  # no_o_id, d_id, w_id
-        "updateOrders": "UPDATE ORDERS SET O_CARRIER_ID = ? WHERE O_ID = ? AND O_D_ID = ? AND O_W_ID = ?",
-        # o_carrier_id, no_o_id, d_id, w_id
-        "updateOrderLine": "UPDATE ORDER_LINE SET OL_DELIVERY_D = ? WHERE OL_O_ID = ? AND OL_D_ID = ? AND OL_W_ID = ?",
-        # o_entry_d, no_o_id, d_id, w_id
-        "sumOLAmount": "SELECT SUM(OL_AMOUNT) FROM ORDER_LINE WHERE OL_O_ID = ? AND OL_D_ID = ? AND OL_W_ID = ?",
-        # no_o_id, d_id, w_id
-        "updateCustomer": "UPDATE CUSTOMER SET C_BALANCE = C_BALANCE + ? WHERE C_ID = ? AND C_D_ID = ? AND C_W_ID = ?",
-        # ol_total, c_id, d_id, w_id
-    },
-    "NEW_ORDER": {
-        "getWarehouseTaxRate": "SELECT W_TAX FROM WAREHOUSE WHERE W_ID = ?",  # w_id
-        "getDistrict": "SELECT D_TAX, D_NEXT_O_ID FROM DISTRICT WHERE D_ID = ? AND D_W_ID = ?",  # d_id, w_id
-        "incrementNextOrderId": "UPDATE DISTRICT SET D_NEXT_O_ID = ? WHERE D_ID = ? AND D_W_ID = ?",
-        # d_next_o_id, d_id, w_id
-        "getCustomer": "SELECT C_DISCOUNT, C_LAST, C_CREDIT FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?",
-        # w_id, d_id, c_id
-        "createOrder": "INSERT INTO ORDERS (O_ID, O_D_ID, O_W_ID, O_C_ID, O_ENTRY_D, O_CARRIER_ID, O_OL_CNT, O_ALL_LOCAL) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        # d_next_o_id, d_id, w_id, c_id, o_entry_d, o_carrier_id, o_ol_cnt, o_all_local
-        "createNewOrder": "INSERT INTO NEW_ORDER (NO_O_ID, NO_D_ID, NO_W_ID) VALUES (?, ?, ?)",  # o_id, d_id, w_id
-        "getItemInfo": "SELECT I_PRICE, I_NAME, I_DATA FROM ITEM WHERE I_ID = ?",  # ol_i_id
-        "getStockInfo": "SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_%02d FROM STOCK WHERE S_I_ID = ? AND S_W_ID = ?",
-        # d_id, ol_i_id, ol_supply_w_id
-        "updateStock": "UPDATE STOCK SET S_QUANTITY = ?, S_YTD = ?, S_ORDER_CNT = ?, S_REMOTE_CNT = ? WHERE S_I_ID = ? AND S_W_ID = ?",
-        # s_quantity, s_order_cnt, s_remote_cnt, ol_i_id, ol_supply_w_id
-        "createOrderLine": "INSERT INTO ORDER_LINE (OL_O_ID, OL_D_ID, OL_W_ID, OL_NUMBER, OL_I_ID, OL_SUPPLY_W_ID, OL_DELIVERY_D, OL_QUANTITY, OL_AMOUNT, OL_DIST_INFO) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        # o_id, d_id, w_id, ol_number, ol_i_id, ol_supply_w_id, ol_quantity, ol_amount, ol_dist_info
-    },
-
     "ORDER_STATUS": {
         "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?",
         # w_id, d_id, c_id
@@ -156,7 +123,7 @@ class Transaction(object):
                 continue
 
             # update OrderLine
-            sql = "UPDATE ORDER_LINE SET OL_DELIVERY_D = %s"  + " WHERE OL_O_ID = " + str(
+            sql = "UPDATE ORDER_LINE SET OL_DELIVERY_D = %s" + " WHERE OL_O_ID = " + str(
                 no_order_id) + " AND OL_D_ID = " + str(district_id) + " AND OL_W_ID = " + str(warehouse_id)
             try:
                 self.driver.transaction_exec(cursor, conn, sql, [ol_delivery_d])
@@ -176,3 +143,170 @@ class Transaction(object):
             result.append((district_id, no_order_id))
             self.driver.transaction_commit(cursor, conn)
         return result
+
+    def new_order(self, warehouse_id, remote_warehouse_id):
+        cursor, conn = self.driver.get_conn()
+        district_id = rand.number(1, config.DIST_PER_WARE)
+        customer_id = rand.NURand(1023, 1, config.CUST_PER_DIST)
+        order_line_count = rand.number(config.MIN_OL_CNT, config.MAX_OL_CNT)
+        o_entry_d = datetime.now()
+        all_local = True
+
+        # 1% of transactions roll back
+        rollback = rand.rand_bool(1)
+
+        i_ids = []
+        items = []
+        i_w_ids = []
+        # get items
+        for i in range(0, order_line_count):
+            i_id = rand.NURand(8191, 1, config.NUM_ITEMS)
+            while i_id in i_ids:
+                i_id = rand.NURand(8191, 1, config.NUM_ITEMS)
+            i_ids.append(i_id)
+
+            # 1% of items are from a remote warehouse
+            remote = rand.rand_bool(1)
+            if remote and warehouse_id != remote_warehouse_id:
+                all_local = False
+                i_w_ids.append(remote_warehouse_id)
+            else:
+                i_w_ids.append(warehouse_id)
+
+            # get item
+            sql = "SELECT I_PRICE, I_NAME, I_DATA FROM ITEM WHERE I_ID = " + str(i_id)
+            try:
+                item_info = self.driver.transaction_fetchone(cursor, conn, sql)
+                items.append(item_info)
+            except Exception as e:
+                self.logger.warn(e)
+                continue
+
+        # get Warehouse Tax Rate
+        sql = "SELECT W_TAX FROM WAREHOUSE WHERE W_ID = " + str(warehouse_id)
+        try:
+            warehouse_tax = self.driver.transaction_fetchone(cursor, conn, sql)['W_TAX']
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # get District
+        sql = "SELECT D_TAX, D_NEXT_O_ID FROM DISTRICT WHERE D_ID = " + str(district_id) + " AND D_W_ID = " + str(
+            warehouse_id)
+        try:
+            district_info = self.driver.transaction_fetchone(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # get Customer
+        sql = "SELECT C_DISCOUNT, C_LAST, C_CREDIT FROM CUSTOMER WHERE C_W_ID = " + str(
+            warehouse_id) + " AND C_D_ID = " + str(district_id) + " AND C_ID = " + str(customer_id)
+        try:
+            customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # increment Next Order-ID
+        sql = "UPDATE DISTRICT SET D_NEXT_O_ID = " + str(district_info['D_NEXT_O_ID'] + 1) + " WHERE D_ID = " + str(
+            district_id) + " AND D_W_ID = " + str(warehouse_id)
+        try:
+            customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # create Order
+        o_detail = [district_info['D_NEXT_O_ID'], district_id, warehouse_id, customer_id, o_entry_d,
+                    config.NULL_CARRIER_ID, order_line_count, all_local]
+        try:
+            self.driver.transaction_insert(cursor, conn, config.TABLE_NAME_ORDERS, o_detail)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # create NewOrder
+        no_detail = [district_info['D_NEXT_O_ID'], district_id, warehouse_id]
+        try:
+            self.driver.transaction_insert(cursor, conn, config.TABLE_NAME_NEW_ORDER, no_detail)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        total = 0
+        #
+        for i in range(len(i_ids)):
+            order_line_num = i + 1
+            ol_supply_w_id = i_w_ids[i]
+            ol_i_id = i_ids[i]
+            ol_quantity = rand.number(1, config.MAX_OL_QUANTITY)
+
+            item_info = items[i]
+            i_name = item_info["I_NAME"]
+            i_data = item_info["I_DATA"]
+            i_price = item_info["I_PRICE"]
+
+            # get StockInfo
+            sql = "SELECT S_QUANTITY, S_DATA, S_YTD, S_ORDER_CNT, S_REMOTE_CNT, S_DIST_%02d FROM STOCK WHERE S_I_ID = " % district_id + str(
+                ol_i_id) + " AND S_W_ID = " + str(warehouse_id)
+            try:
+                stock_info = self.driver.transaction_fetchone(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+            s_quantity = stock_info['S_QUANTITY']
+            s_ytd = stock_info['S_YTD']
+            s_order_cnt = stock_info['S_ORDER_CNT']
+            s_remote_cnt = stock_info['S_REMOTE_CNT']
+            s_data = stock_info['S_DATA']
+            s_temp = "S_DIST_%02d" % district_id
+            s_dist = stock_info[s_temp]
+
+            s_ytd += ol_quantity
+            if s_quantity >= ol_quantity + 10:
+                s_quantity = s_quantity - ol_quantity
+            else:
+                s_quantity = s_quantity + 91 - ol_quantity
+            s_order_cnt += 1
+
+            if ol_supply_w_id != warehouse_id:
+                s_remote_cnt += 1
+
+            # update Stock
+            sql = "UPDATE STOCK SET S_QUANTITY = " + str(s_quantity) + ", S_YTD = " + str(
+                s_ytd) + ", S_ORDER_CNT = " + str(s_order_cnt) + ", S_REMOTE_CNT = " + str(
+                s_remote_cnt) + " WHERE S_I_ID = " + str(ol_i_id) + " AND S_W_ID = " + str(ol_supply_w_id)
+            try:
+                self.driver.transaction_exec(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+            if i_data.find(config.ORIGINAL_STRING) != -1 and s_data.find(config.ORIGINAL_STRING) != -1:
+                brand_generic = 'B'
+            else:
+                brand_generic = 'G'
+
+            ol_amount = ol_quantity * i_price
+            total += ol_amount
+
+            # create OrderLine
+            ol_detail = [district_info['D_NEXT_O_ID'], district_id, warehouse_id, order_line_num, ol_i_id,
+                         ol_supply_w_id, o_entry_d, ol_quantity, ol_amount, s_dist]
+            try:
+                self.driver.transaction_insert(cursor, conn, config.TABLE_NAME_ORDER_LINE, ol_detail)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+        if rollback:
+            self.driver.transaction_rollback(cursor, conn)
+        else:
+            self.driver.transaction_commit(cursor, conn)
+            total *= (1 - customer_info['C_DISCOUNT']) * (1 + warehouse_tax + district_info['D_TAX'])
+            self.logger.debug(
+                "Customer " + str(customer_id) + " of District " + str(district_id) + " of Warehouse " + str(
+                    warehouse_id) + " generate new order " + str(
+                    district_info['D_NEXT_O_ID']) + " with total of " + str(total) + ".")

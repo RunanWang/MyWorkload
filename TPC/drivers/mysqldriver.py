@@ -208,3 +208,21 @@ class MysqlDriver(AbstractDriver):
     def transaction_commit(self, cursor, conn):
         conn.commit()
         self.close_conn(cursor, conn)
+
+    def transaction_rollback(self, cursor, conn):
+        conn.rollback()
+        self.close_conn(cursor, conn)
+
+    def transaction_insert(self, cursor, conn, table_name, insert_input):
+        sql = "INSERT INTO " + table_name + " VALUES (\"" + str(insert_input[0]) + '"'
+        for i in range(1, len(insert_input)):
+            sql = sql + ", \"" + str(insert_input[i]) + '"'
+        sql = sql + ");"
+        try:
+            count = cursor.execute(sql)
+            return count
+        except Exception as e:
+            self.logger.warn(e.with_traceback)
+            conn.rollback()
+            self.close_conn(cursor, conn)
+            raise e
