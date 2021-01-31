@@ -102,8 +102,48 @@ class Transaction(object):
         o_carrier_id = rand.number(config.MIN_CARRIER_ID, config.MAX_CARRIER_ID)
         ol_delivery_d = datetime.now()
         result = []
-        for d_id in range(1, config.DIST_PER_WARE + 1):
-            sql = "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = " + str(d_id) + " AND NO_W_ID = " + str(
+        cursor, conn = self.driver.get_conn()
+        for district_id in range(1, config.DIST_PER_WARE + 1):
+            # get New-Order
+            sql = "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = " + str(district_id) + " AND NO_W_ID = " + str(
                 warehouse_id) + " AND NO_O_ID > -1 LIMIT 1"
-            new_order = self.driver.fetchone(sql)
-            self.logger.debug(new_order)
+            new_order = cursor.fetch_one(sql)
+            if new_order is None:
+                # No orders for this district: skip it. Note: This must be reported if > 1%
+                continue
+            no_order_id = new_order['NO_O_ID']
+
+            # get Customer ID
+            sql = "SELECT O_C_ID FROM ORDERS WHERE O_ID = " + str(no_order_id) + " AND O_D_ID = " + str(
+                district_id) + " AND O_W_ID = " + str(warehouse_id)
+            customer_id = cursor.fetch_one(sql)['O_C_ID']
+
+            # sum OrderLine Amount
+            sql = "SELECT SUM(OL_AMOUNT) FROM ORDER_LINE WHERE OL_O_ID = " + str(no_order_id) + " AND OL_D_ID = " + str(
+                district_id) + " AND OL_W_ID = " + str(warehouse_id)
+            order_line_total = cursor.fetch_one(sql)['SUM(OL_AMOUNT)']
+
+            # delete New-Order
+            sql = "DELETE FROM NEW_ORDER WHERE NO_D_ID = " + str(district_id) + " AND NO_W_ID = " + str(
+                warehouse_id) + " AND NO_O_ID = " + str(no_order_id)
+            cursor.execute(sql)
+
+            # update Orders
+            sql = "UPDATE ORDERS SET O_CARRIER_ID = " + str(o_carrier_id) + " WHERE O_ID = " + str(
+                no_order_id) + " AND O_D_ID = " + str(district_id) + " AND O_W_ID = " + str(warehouse_id)
+            cursor.execute(sql)
+
+            # update OrderLine
+            sql = "UPDATE ORDER_LINE SET OL_DELIVERY_D = " + str(ol_delivery_d) + " WHERE OL_O_ID = " + str(
+                no_order_id) + " AND OL_D_ID = " + str(district_id) + " AND OL_W_ID = " + str(warehouse_id)
+            cursor.execute(sql)
+
+            # update Customer
+            sql = "UPDATE CUSTOMER SET C_BALANCE = C_BALANCE + " + str(order_line_total) + " WHERE C_ID = " + str(
+                customer_id) + " AND C_D_ID = " + str(district_id) + " AND C_W_ID = " + str(warehouse_id)
+            cursor.execute(sql)
+
+            result.append((district_id, no_order_id))
+        conn.commit()
+        self.driver.close_conn(cursor, conn)
+        return result
