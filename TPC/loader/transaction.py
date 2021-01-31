@@ -150,7 +150,7 @@ class Transaction(object):
         customer_id = rand.NURand(1023, 1, config.CUST_PER_DIST)
         order_line_count = rand.number(config.MIN_OL_CNT, config.MAX_OL_CNT)
         o_entry_d = datetime.now()
-        all_local = True
+        all_local = 1
 
         # 1% of transactions roll back
         rollback = rand.rand_bool(1)
@@ -168,7 +168,7 @@ class Transaction(object):
             # 1% of items are from a remote warehouse
             remote = rand.rand_bool(1)
             if remote and warehouse_id != remote_warehouse_id:
-                all_local = False
+                all_local = 0
                 i_w_ids.append(remote_warehouse_id)
             else:
                 i_w_ids.append(warehouse_id)
@@ -212,7 +212,7 @@ class Transaction(object):
         sql = "UPDATE DISTRICT SET D_NEXT_O_ID = " + str(district_info['D_NEXT_O_ID'] + 1) + " WHERE D_ID = " + str(
             district_id) + " AND D_W_ID = " + str(warehouse_id)
         try:
-            customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
+            self.driver.transaction_exec(cursor, conn, sql)
         except Exception as e:
             self.logger.warn(e)
             return
@@ -284,10 +284,10 @@ class Transaction(object):
                 self.logger.warn(e)
                 return
 
-            if i_data.find(config.ORIGINAL_STRING) != -1 and s_data.find(config.ORIGINAL_STRING) != -1:
-                brand_generic = 'B'
-            else:
-                brand_generic = 'G'
+            # if i_data.find(config.ORIGINAL_STRING) != -1 and s_data.find(config.ORIGINAL_STRING) != -1:
+            #     brand_generic = 'B'
+            # else:
+            #     brand_generic = 'G'
 
             ol_amount = ol_quantity * i_price
             total += ol_amount
