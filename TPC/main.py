@@ -1,4 +1,7 @@
 from loader.loader import Loader
+from loader.transaction import Transaction
 
-loader = Loader("mysql")
-loader.monitor_warehouse(1)
+# loader = Loader("mysql")
+# loader.monitor_warehouse(1)
+transaction = Transaction("mysql")
+transaction.delivery(1)

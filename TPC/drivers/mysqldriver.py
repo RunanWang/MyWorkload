@@ -118,6 +118,19 @@ class MysqlDriver(AbstractDriver):
         finally:
             self.close_conn(cursor, conn)
 
+    # get一条
+    def fetch_one(self, fetch_input):
+        cursor, conn = None, None
+        try:
+            cursor, conn, count = self.execute(fetch_input)
+            res = cursor.fetchone()
+            return res
+        except Exception as e:
+            self.logger.warn(e)
+            return -1
+        finally:
+            self.close_conn(cursor, conn)
+
     # 增加
     def insert(self, table_name, insert_input):
         sql = "INSERT INTO " + table_name + " VALUES (\"" + str(insert_input[0]) + '"'

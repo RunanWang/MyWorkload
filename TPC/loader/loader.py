@@ -4,13 +4,11 @@ import TPC.config.config as config
 
 from datetime import datetime
 from random import shuffle
-import multiprocessing
 
 
 class Loader(object):
     def __init__(self, name):
         self.logger = get_cmd_logger()
-        self.warehouse_counter = multiprocessing.Value("i", 0, lock=True)
         driver_class = self.create_driver_class(name)
         self.driver = driver_class()
 
@@ -201,10 +199,10 @@ class Loader(object):
         # 1% of items are from a remote warehouse
         remote = (rand.number(1, 100) == 1)
         if remote:
-            if self.warehouse_counter.value == 0:
+            if ol_w_id == 1:
                 ol_supply_w_id = 1
             else:
-                ol_supply_w_id = rand.numberExcluding(1, self.warehouse_counter.value + 1, ol_w_id)
+                ol_supply_w_id = rand.numberExcluding(1, ol_w_id, ol_w_id)
 
         if not new_order:
             ol_amount = 0.00
