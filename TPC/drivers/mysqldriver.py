@@ -205,6 +205,16 @@ class MysqlDriver(AbstractDriver):
             self.close_conn(cursor, conn)
             raise e
 
+    def transaction_fetchall(self, cursor, conn, sql):
+        try:
+            cursor.execute(sql)
+            return cursor.fetchall()
+        except Exception as e:
+            self.logger.warn(e)
+            conn.rollback()
+            self.close_conn(cursor, conn)
+            raise e
+
     def transaction_commit(self, cursor, conn):
         conn.commit()
         self.close_conn(cursor, conn)

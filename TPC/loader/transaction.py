@@ -4,52 +4,6 @@ import TPC.config.config as config
 
 from datetime import datetime
 
-TXN_QUERIES = {
-    "ORDER_STATUS": {
-        "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?",
-        # w_id, d_id, c_id
-        "getCustomersByLastName": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_LAST = ? ORDER BY C_FIRST",
-        # w_id, d_id, c_last
-        "getLastOrder": "SELECT O_ID, O_CARRIER_ID, O_ENTRY_D FROM ORDERS WHERE O_W_ID = ? AND O_D_ID = ? AND O_C_ID = ? ORDER BY O_ID DESC LIMIT 1",
-        # w_id, d_id, c_id
-        "getOrderLines": "SELECT OL_SUPPLY_W_ID, OL_I_ID, OL_QUANTITY, OL_AMOUNT, OL_DELIVERY_D FROM ORDER_LINE WHERE OL_W_ID = ? AND OL_D_ID = ? AND OL_O_ID = ?",
-        # w_id, d_id, o_id
-    },
-
-    "PAYMENT": {
-        "getWarehouse": "SELECT W_NAME, W_STREET_1, W_STREET_2, W_CITY, W_STATE, W_ZIP FROM WAREHOUSE WHERE W_ID = ?",
-        # w_id
-        "updateWarehouseBalance": "UPDATE WAREHOUSE SET W_YTD = W_YTD + ? WHERE W_ID = ?",  # h_amount, w_id
-        "getDistrict": "SELECT D_NAME, D_STREET_1, D_STREET_2, D_CITY, D_STATE, D_ZIP FROM DISTRICT WHERE D_W_ID = ? AND D_ID = ?",
-        # w_id, d_id
-        "updateDistrictBalance": "UPDATE DISTRICT SET D_YTD = D_YTD + ? WHERE D_W_ID  = ? AND D_ID = ?",
-        # h_amount, d_w_id, d_id
-        "getCustomerByCustomerId": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?",
-        # w_id, d_id, c_id
-        "getCustomersByLastName": "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM CUSTOMER WHERE C_W_ID = ? AND C_D_ID = ? AND C_LAST = ? ORDER BY C_FIRST",
-        # w_id, d_id, c_last
-        "updateBCCustomer": "UPDATE CUSTOMER SET C_BALANCE = ?, C_YTD_PAYMENT = ?, C_PAYMENT_CNT = ?, C_DATA = ? WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?",
-        # c_balance, c_ytd_payment, c_payment_cnt, c_data, c_w_id, c_d_id, c_id
-        "updateGCCustomer": "UPDATE CUSTOMER SET C_BALANCE = ?, C_YTD_PAYMENT = ?, C_PAYMENT_CNT = ? WHERE C_W_ID = ? AND C_D_ID = ? AND C_ID = ?",
-        # c_balance, c_ytd_payment, c_payment_cnt, c_w_id, c_d_id, c_id
-        "insertHistory": "INSERT INTO HISTORY VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-    },
-
-    "STOCK_LEVEL": {
-        "getOId": "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID = ? AND D_ID = ?",
-        "getStockCount": """
-            SELECT COUNT(DISTINCT(OL_I_ID)) FROM ORDER_LINE, STOCK
-            WHERE OL_W_ID = ?
-              AND OL_D_ID = ?
-              AND OL_O_ID < ?
-              AND OL_O_ID >= ?
-              AND S_W_ID = ?
-              AND S_I_ID = OL_I_ID
-              AND S_QUANTITY < ?
-        """,
-    },
-}
-
 
 class Transaction(object):
     def __init__(self, name):
@@ -310,3 +264,207 @@ class Transaction(object):
                 "Customer " + str(customer_id) + " of District " + str(district_id) + " of Warehouse " + str(
                     warehouse_id) + " generate new order " + str(
                     district_info['D_NEXT_O_ID']) + " with total of " + str(total) + ".")
+
+    def payment(self, warehouse_id, remote_warehouse_id):
+        cursor, conn = self.driver.get_conn()
+        district_id = rand.number(1, config.DIST_PER_WARE)
+
+        # 85%: paying through own warehouse (or there is only 1 warehouse)
+        if warehouse_id == remote_warehouse_id or rand.rand_bool(85):
+            customer_warehouse_id = warehouse_id
+            customer_district_id = district_id
+        # 15%: paying through another warehouse:
+        else:
+            customer_warehouse_id = remote_warehouse_id
+            customer_district_id = rand.number(1, config.DIST_PER_WARE)
+
+        # 60%: payment by last name
+        if rand.rand_bool(60):
+            customer_last = rand.makeRandomLastName(config.CUST_PER_DIST)
+            sql = "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, " \
+                  "C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM " \
+                  "CUSTOMER WHERE C_W_ID = " + str(customer_warehouse_id) + " AND C_D_ID = " + str(customer_district_id) \
+                  + " AND C_LAST = " + str(customer_last) + " ORDER BY C_FIRST"
+            try:
+                customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+        # 40%: payment by id
+        else:
+            customer_id = rand.NURand(1023, 1, config.CUST_PER_DIST)
+            sql = "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, " \
+                  "C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM " \
+                  "CUSTOMER WHERE C_W_ID = " + str(customer_warehouse_id) + " AND C_D_ID = " + str(customer_district_id) \
+                  + " AND C_ID = " + str(customer_id)
+            try:
+                customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+        h_amount = rand.fixedPoint(2, config.MIN_PAYMENT, config.MAX_PAYMENT)
+        customer_id = customer_info["C_ID"]
+        c_balance = customer_info["C_BALANCE"] - h_amount
+        c_ytd_payment = customer_info["C_YTD_PAYMENT"] + h_amount
+        c_payment_cnt = customer_info["C_PAYMENT_CNT"] + 1
+        c_data = customer_info["C_DATA"]
+
+        # get warehouse
+        sql = "SELECT W_NAME, W_STREET_1, W_STREET_2, W_CITY, W_STATE, W_ZIP FROM WAREHOUSE WHERE W_ID = " + str(
+            warehouse_id)
+        try:
+            warehouse_info = self.driver.transaction_fetchone(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # get district
+        sql = "SELECT D_NAME, D_STREET_1, D_STREET_2, D_CITY, D_STATE, D_ZIP FROM DISTRICT WHERE D_W_ID = " + str(
+            warehouse_id) + " AND D_ID = " + str(district_id)
+        try:
+            district_info = self.driver.transaction_fetchone(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # update warehouse balance
+        sql = "UPDATE WAREHOUSE SET W_YTD = W_YTD + " + str(h_amount) + " WHERE W_ID = " + str(warehouse_id)
+        try:
+            self.driver.transaction_exec(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # update district balance
+        sql = "UPDATE DISTRICT SET D_YTD = D_YTD + " + str(h_amount) + " WHERE D_W_ID  = " + str(
+            warehouse_id) + " AND D_ID = " + str(district_id)
+        try:
+            self.driver.transaction_exec(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        # update Customer Credit Information
+        if customer_info['C_CREDIT'] == config.BAD_CREDIT:
+            new_data = " ".join(map(str, [customer_id, customer_district_id, customer_warehouse_id, district_id,
+                                          warehouse_id, h_amount]))
+            c_data = (new_data + "|" + c_data)
+            if len(c_data) > config.MAX_C_DATA:
+                c_data = c_data[:config.MAX_C_DATA]
+            sql = "UPDATE CUSTOMER SET C_BALANCE = " + str(c_balance) + ", C_YTD_PAYMENT = " + str(
+                c_ytd_payment) + ", C_PAYMENT_CNT = " + str(c_payment_cnt) + ", C_DATA = " + str(
+                c_data) + " WHERE C_W_ID = " + str(customer_warehouse_id) + " AND C_D_ID = " + str(
+                customer_district_id) + " AND C_ID = " + str(customer_id)
+            try:
+                self.driver.transaction_exec(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+        else:
+            c_data = ""
+            sql = "UPDATE CUSTOMER SET C_BALANCE = " + str(c_balance) + ", C_YTD_PAYMENT = " + str(
+                c_ytd_payment) + ", C_PAYMENT_CNT = " + str(c_payment_cnt) + " WHERE C_W_ID = " + str(
+                customer_warehouse_id) + " AND C_D_ID = " + str(customer_district_id) + " AND C_ID = " + str(
+                customer_id)
+            try:
+                self.driver.transaction_exec(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+        # Concatenate w_name, four spaces, d_name
+        h_data = "%s    %s" % (warehouse_info["W_NAME"], district_info["D_NAME"])
+        h_date = datetime.now()
+        h_detail = [customer_id, customer_district_id, customer_warehouse_id, district_id, warehouse_id, h_date,
+                    h_amount, h_data]
+        try:
+            self.driver.transaction_insert(cursor, conn, config.TABLE_NAME_HISTORY, h_detail)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        self.driver.transaction_commit(cursor, conn)
+        self.logger.debug(
+            "Payment transaction complete: Customer " + str(customer_info['C_ID']) + " of Warehouse" + str(
+                customer_warehouse_id) + " in District" + str(customer_district_id) + " generate payment of " + str(
+                h_amount) + ".")
+
+    def stock_level(self, warehouse_id):
+        cursor, conn = self.driver.get_conn()
+        district_id = rand.number(1, config.DIST_PER_WARE)
+        threshold = rand.number(config.MIN_STOCK_LEVEL_THRESHOLD, config.MAX_STOCK_LEVEL_THRESHOLD)
+
+        sql = "SELECT D_NEXT_O_ID FROM DISTRICT WHERE D_W_ID = " + str(warehouse_id) + " AND D_ID = " + str(district_id)
+        try:
+            district_info = self.driver.transaction_fetchone(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+        o_id = district_info["D_NEXT_O_ID"]
+
+        sql = "SELECT COUNT(DISTINCT(OL_I_ID)) FROM ORDER_LINE, STOCK WHERE OL_W_ID = " + str(
+            warehouse_id) + " AND OL_D_ID = " + str(district_id) + " AND OL_O_ID < " + str(
+            o_id) + " AND OL_O_ID >= " + str((o_id - 20)) + " AND S_W_ID = " + str(
+            warehouse_id) + " AND S_I_ID = OL_I_ID AND S_QUANTITY < " + str(threshold)
+        try:
+            count_info = self.driver.transaction_fetchone(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        self.driver.transaction_commit(cursor, conn)
+        self.logger.debug("Transaction stock_level complete: Warehouse" + str(warehouse_id) + " in District" + str(
+            district_id) + " ans " + str(count_info))
+
+    def order_status(self, warehouse_id):
+        cursor, conn = self.driver.get_conn()
+        district_id = rand.number(1, config.DIST_PER_WARE)
+
+        # 60%: order status by last name
+        if rand.rand_bool(60):
+            c_last = rand.makeRandomLastName(config.CUST_PER_DIST)
+            sql = "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = " + str(
+                warehouse_id) + " AND C_D_ID = " + str(district_id) + " AND C_LAST = " + str(
+                c_last) + " ORDER BY C_FIRST"
+            try:
+                customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+        # 40%: order status by id
+        else:
+            c_id = rand.NURand(1023, 1, config.CUST_PER_DIST)
+            sql = "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = " + str(
+                warehouse_id) + " AND C_D_ID = " + str(district_id) + " AND C_ID = " + str(c_id)
+            try:
+                customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+        c_id = customer_info['C_ID']
+        sql = "SELECT O_ID, O_CARRIER_ID, O_ENTRY_D FROM ORDERS WHERE O_W_ID = " + str(
+            warehouse_id) + " AND O_D_ID = " + str(district_id) + " AND O_C_ID = " + str(
+            c_id) + " ORDER BY O_ID DESC LIMIT 1"
+        try:
+            order_info = self.driver.transaction_fetchone(cursor, conn, sql)
+        except Exception as e:
+            self.logger.warn(e)
+            return
+
+        ol_info = {}
+        if order_info:
+            sql = "SELECT OL_SUPPLY_W_ID, OL_I_ID, OL_QUANTITY, OL_AMOUNT, OL_DELIVERY_D FROM ORDER_LINE WHERE OL_W_ID = " + str(
+                warehouse_id) + " AND OL_D_ID = " + str(district_id) + " AND OL_O_ID = " + str(order_info['O_ID'])
+            try:
+                ol_info = self.driver.transaction_fetchall(cursor, conn, sql)
+            except Exception as e:
+                self.logger.warn(e)
+                return
+
+        self.driver.transaction_commit(cursor, conn)
+        self.logger.debug("Transaction Order_status Complete: Warehouse" + str(warehouse_id) + " District" + str(
+            district_id) + " Customer" + str(c_id) + " gets order-line info " + str(ol_info) + ".")

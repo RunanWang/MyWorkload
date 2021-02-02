@@ -89,6 +89,14 @@ INITIAL_QUANTITY = 5
 MIN_AMOUNT = 0.01
 MAX_OL_QUANTITY = 10
 
+#  Used to generate payment transactions
+MIN_PAYMENT = 1.0
+MAX_PAYMENT = 5000.0
+
+#  Used to generate stock level transactions
+MIN_STOCK_LEVEL_THRESHOLD = 10
+MAX_STOCK_LEVEL_THRESHOLD = 20
+
 # Table Names
 TABLE_NAME_CUSTOMER = "CUSTOMER"
 TABLE_NAME_DISTRICT = "DISTRICT"
