@@ -96,7 +96,7 @@ class Transaction(object):
 
             result.append((district_id, no_order_id))
             self.driver.transaction_commit(cursor, conn)
-        return result
+        self.logger.debug("Transaction Delivery complete:" + str(result))
 
     def new_order(self, warehouse_id, remote_warehouse_id):
         cursor, conn = self.driver.get_conn()
@@ -261,7 +261,7 @@ class Transaction(object):
             self.driver.transaction_commit(cursor, conn)
             total *= (1 - customer_info['C_DISCOUNT']) * (1 + warehouse_tax + district_info['D_TAX'])
             self.logger.debug(
-                "Customer " + str(customer_id) + " of District " + str(district_id) + " of Warehouse " + str(
+                "Transaction New-Order complete: Customer " + str(customer_id) + " of District " + str(district_id) + " of Warehouse " + str(
                     warehouse_id) + " generate new order " + str(
                     district_info['D_NEXT_O_ID']) + " with total of " + str(total) + ".")
 
@@ -284,7 +284,7 @@ class Transaction(object):
             sql = "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_STREET_1, C_STREET_2, C_CITY, C_STATE, C_ZIP, C_PHONE, " \
                   "C_SINCE, C_CREDIT, C_CREDIT_LIM, C_DISCOUNT, C_BALANCE, C_YTD_PAYMENT, C_PAYMENT_CNT, C_DATA FROM " \
                   "CUSTOMER WHERE C_W_ID = " + str(customer_warehouse_id) + " AND C_D_ID = " + str(customer_district_id) \
-                  + " AND C_LAST = " + str(customer_last) + " ORDER BY C_FIRST"
+                  + " AND C_LAST = '" + str(customer_last) + "' ORDER BY C_FIRST"
             try:
                 customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
             except Exception as e:
@@ -387,7 +387,7 @@ class Transaction(object):
 
         self.driver.transaction_commit(cursor, conn)
         self.logger.debug(
-            "Payment transaction complete: Customer " + str(customer_info['C_ID']) + " of Warehouse" + str(
+            "Transaction Payment complete: Customer " + str(customer_info['C_ID']) + " of Warehouse" + str(
                 customer_warehouse_id) + " in District" + str(customer_district_id) + " generate payment of " + str(
                 h_amount) + ".")
 
@@ -426,8 +426,8 @@ class Transaction(object):
         if rand.rand_bool(60):
             c_last = rand.makeRandomLastName(config.CUST_PER_DIST)
             sql = "SELECT C_ID, C_FIRST, C_MIDDLE, C_LAST, C_BALANCE FROM CUSTOMER WHERE C_W_ID = " + str(
-                warehouse_id) + " AND C_D_ID = " + str(district_id) + " AND C_LAST = " + str(
-                c_last) + " ORDER BY C_FIRST"
+                warehouse_id) + " AND C_D_ID = " + str(district_id) + " AND C_LAST = '" + str(
+                c_last) + "' ORDER BY C_FIRST"
             try:
                 customer_info = self.driver.transaction_fetchone(cursor, conn, sql)
             except Exception as e:
@@ -467,4 +467,4 @@ class Transaction(object):
 
         self.driver.transaction_commit(cursor, conn)
         self.logger.debug("Transaction Order_status Complete: Warehouse" + str(warehouse_id) + " District" + str(
-            district_id) + " Customer" + str(c_id) + " gets order-line info " + str(ol_info) + ".")
+            district_id) + " Customer" + str(c_id) + " gets order-line info " + str(ol_info[0]) + ".")
