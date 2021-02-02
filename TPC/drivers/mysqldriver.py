@@ -160,6 +160,19 @@ class MysqlDriver(AbstractDriver):
         finally:
             self.close_conn(cursor, conn)
 
+    # 删除全部
+    def delete_all(self, table_name):
+        sql = "delete from " + str(table_name) + ";"
+        cursor, conn = None, None
+        try:
+            cursor, conn, count = self.execute(sql)
+            return count
+        except Exception as e:
+            self.logger.warn(e)
+            return -1
+        finally:
+            self.close_conn(cursor, conn)
+
     # 更新
     def update(self, update_input):
         cursor, conn = None, None
