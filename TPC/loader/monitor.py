@@ -15,12 +15,14 @@ class Monitor(object):
         # warehouse-list的锁
         self.warehouse_id_lock = multiprocessing.Lock()
         # 所有完成的warehouse-id
-        self.warehouse_id_list = []
+        self.warehouse_id_list = [1]
         # warehouse-list的锁
         self.warehouse_id_list_lock = multiprocessing.Lock()
         self.logger = get_cmd_logger()
         driver_class = self.create_driver_class(name)
         self.driver = driver_class()
+        self.transaction = Transaction(self.name)
+        self.counter = multiprocessing.Value('i', lock=True)
 
     # 寻找name对应的driver
     @staticmethod
@@ -78,21 +80,28 @@ class Monitor(object):
         self.load_warehouse()
 
     def transaction_workload(self):
-        transaction = Transaction(self.name)
-        prob = rand.number(1, 100)
-        if prob <= 4:  # 4% stock-level
-            warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-            transaction.stock_level(warehouse_id)
-        elif prob <= 4 + 4:  # 4% delivery
-            warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-            transaction.delivery(warehouse_id)
-        elif prob <= 4 + 4 + 4:  # 4% order_status
-            warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-            transaction.order_status(warehouse_id)
-        elif prob <= 43 + 4 + 4 + 4:  # 43% payment
-            warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-            transaction.payment(warehouse_id, warehouse_id_remote)
-        else:  # 45% new_order
-            warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-            transaction.new_order(warehouse_id, warehouse_id_remote)
-        time.sleep(0.5)
+        while True:
+            prob = rand.number(1, 100)
+            if prob <= 4:  # 4% stock-level
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.stock_level(warehouse_id)
+            elif prob <= 4 + 4:  # 4% delivery
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.delivery(warehouse_id)
+            elif prob <= 4 + 4 + 4:  # 4% order_status
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.order_status(warehouse_id)
+            elif prob <= 43 + 4 + 4 + 4:  # 43% payment
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.payment(warehouse_id, warehouse_id_remote)
+            else:  # 45% new_order
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.new_order(warehouse_id, warehouse_id_remote)
+            with self.counter.get_lock():
+                self.counter.value = self.counter.value + 1
+    
+    def get_counter(self):
+        with self.counter.get_lock():
+            ret = self.counter.value
+            self.counter.value = 0
+        return ret
