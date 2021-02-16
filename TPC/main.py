@@ -25,4 +25,4 @@ import multiprocessing
 #     time.sleep(1)
 
 monitor = Monitor("mysql")
-monitor.init_warehouse_item()
+monitor.monitor_process()

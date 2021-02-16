@@ -7,20 +7,10 @@ from random import shuffle
 
 
 class Loader(object):
-    def __init__(self, name):
+    def __init__(self, driver):
         self.logger = get_cmd_logger()
-        driver_class = self.create_driver_class(name)
-        self.driver = driver_class()
+        self.driver = driver
 
-    # 寻找name对应的driver
-    @staticmethod
-    def create_driver_class(name):
-        full_name = "%sDriver" % name.title()
-        mod = __import__('TPC.drivers.%s' % full_name.lower(), globals(), locals(), [full_name])
-        klass = getattr(mod, full_name)
-        return klass
-
-    # 把Original标记填满
     @staticmethod
     def generate_original_string(data):
         original_length = len(config.ORIGINAL_STRING)
@@ -29,19 +19,20 @@ class Loader(object):
         assert len(out) == len(data)
         return out
 
-    # 产生tax，用于warehouse
     @staticmethod
     def generate_tax():
         return rand.fixedPoint(config.TAX_DECIMALS, config.MIN_TAX, config.MAX_TAX)
 
-    # 产生邮编
     @staticmethod
     def generate_zip():
         length = config.ZIP_LENGTH - len(config.ZIP_SUFFIX)
         return rand.nstring(length, length) + config.ZIP_SUFFIX
 
-    # 产生地址
     def generate_address(self):
+        """
+        产生地址
+        :return:
+        """
         name = rand.astring(config.MIN_NAME, config.MAX_NAME)
         street1 = rand.astring(config.MIN_STREET, config.MAX_STREET)
         street2 = rand.astring(config.MIN_STREET, config.MAX_STREET)
