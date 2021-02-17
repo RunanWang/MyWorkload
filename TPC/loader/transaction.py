@@ -17,6 +17,7 @@ class Transaction(object):
             ol_delivery_d = datetime.now()
             result = []
             for district_id in range(1, config.DIST_PER_WARE + 1):
+                cursor, conn = self.driver.get_conn()
                 # get New-Order
                 sql = "SELECT NO_O_ID FROM NEW_ORDER WHERE NO_D_ID = " + str(district_id) + " AND NO_W_ID = " + str(
                     warehouse_id) + " AND NO_O_ID > -1 LIMIT 1"

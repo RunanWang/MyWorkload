@@ -65,13 +65,13 @@ class Monitor(object):
         return warehouse_id, warehouse_id_remote
 
     def delete_all(self):
-        self.driver.delete_all(config.TABLE_NAME_STOCK)
         self.driver.delete_all(config.TABLE_NAME_ORDER_LINE)
         self.driver.delete_all(config.TABLE_NAME_NEW_ORDER)
         self.driver.delete_all(config.TABLE_NAME_ORDERS)
         self.driver.delete_all(config.TABLE_NAME_HISTORY)
         self.driver.delete_all(config.TABLE_NAME_CUSTOMER)
         self.driver.delete_all(config.TABLE_NAME_DISTRICT)
+        self.driver.delete_all(config.TABLE_NAME_STOCK)
         self.driver.delete_all(config.TABLE_NAME_WAREHOUSE)
         self.driver.delete_all(config.TABLE_NAME_ITEM)
 
@@ -80,31 +80,28 @@ class Monitor(object):
         self.load_item()
         self.load_warehouse()
 
-    def transaction_workload(self, t_id):
-        try:
-            self.logger.info("Workload of transaction" + str(t_id) + " has been Started.")
-            while True:
-                prob = rand.number(1, 100)
-                if prob <= 4:  # 4% stock-level
-                    warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-                    self.transaction.stock_level(warehouse_id)
-                elif prob <= 4 + 4:  # 4% delivery
-                    warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-                    self.transaction.delivery(warehouse_id)
-                elif prob <= 4 + 4 + 4:  # 4% order_status
-                    warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-                    self.transaction.order_status(warehouse_id)
-                elif prob <= 43 + 4 + 4 + 4:  # 43% payment
-                    warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-                    self.transaction.payment(warehouse_id, warehouse_id_remote)
-                else:  # 45% new_order
-                    warehouse_id, warehouse_id_remote = self.get_warehouse_id()
-                    self.transaction.new_order(warehouse_id, warehouse_id_remote)
-                with self.counter.get_lock():
-                    self.counter.value = self.counter.value + 1
-        except KeyboardInterrupt:
-            time.sleep(2)
-            self.logger.info("Workload of transaction" + str(t_id) + " has been terminated.")
+    def transaction_workload(self, t_id, alive):
+        self.logger.info("Workload of transaction" + str(t_id) + " has been Started.")
+        while alive.value is 1:
+            prob = rand.number(1, 100)
+            if prob <= 4:  # 4% stock-level
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.stock_level(warehouse_id)
+            elif prob <= 4 + 4:  # 4% delivery
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.delivery(warehouse_id)
+            elif prob <= 4 + 4 + 4:  # 4% order_status
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.order_status(warehouse_id)
+            elif prob <= 43 + 4 + 4 + 4:  # 43% payment
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.payment(warehouse_id, warehouse_id_remote)
+            else:  # 45% new_order
+                warehouse_id, warehouse_id_remote = self.get_warehouse_id()
+                self.transaction.new_order(warehouse_id, warehouse_id_remote)
+            with self.counter.get_lock():
+                self.counter.value = self.counter.value + 1
+        self.logger.info("Workload of transaction" + str(t_id) + " has been terminated.")
 
     def get_counter(self):
         with self.counter.get_lock():
@@ -118,19 +115,31 @@ class Monitor(object):
         # TODO: do load
 
         # transaction process
+        transaction_alive = multiprocessing.Value('i', 1)
         transaction_process_num = 2
         transaction_process_list = []
+        start_transaction_time = time.time()
         for i in range(1, transaction_process_num + 1):
-            temp_process = multiprocessing.Process(target=self.transaction_workload, args=(i,))
+            temp_process = multiprocessing.Process(target=self.transaction_workload, args=(i, transaction_alive, ))
             transaction_process_list.append(temp_process)
+            temp_process.start()
 
         # Daemon process
-        try:
-            time.sleep(10)
-            counter = self.get_counter()
-            self.logger.info("QPS: " + str(counter/10))
+        while True:
+            signal = input()
+            if signal is 'c':
+                self.logger.info('Get end transaction signal! Please wait.')
+                transaction_alive.value = 0
+                break
+            else:
+                self.logger.info('Wrong signal. The end signal is c.')
 
-        except KeyboardInterrupt:
-            for item in transaction_process_list:
-                item.join()
-            self.logger.info("Workload Monitor Terminated!")
+        for item in transaction_process_list:
+            item.join()
+        end_transaction_time = time.time()
+        total_transaction_time = end_transaction_time - start_transaction_time
+        transaction_counter = self.get_counter()
+        self.logger.info(
+            "All Transaction Terminated. During " + str(total_transaction_time) + " of transaction time, " + str(
+                transaction_counter) + " of transactions has been submit. Average " + str(
+                transaction_counter / total_transaction_time) + " TPS.")
