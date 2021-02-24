@@ -149,7 +149,7 @@ class Monitor(object):
                 break
             else:
                 self.logger.info('Wrong signal. The end signal is c.')
-
+        queue.put(None)
         for item in process_list:
             item.join()
         end_transaction_time = time.time()

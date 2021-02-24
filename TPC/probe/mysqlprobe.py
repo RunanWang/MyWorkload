@@ -252,19 +252,23 @@ class Probe(object):
         sql = self.PROBE_SQL_LIST[i]
         explain_sql = "explain " + sql
         status_sql = "show global status"
-        cursor, conn = self.driver.get_conn()
+        conn, cursor = self.driver.get_cursor()
 
         # 记录explain结果
-        explain_resp = self.driver.transaction_fetchall(cursor, conn, explain_sql)
+        cursor.execute(explain_sql)
+        explain_resp = cursor.fetchall()
 
         # 记录profile结果
-        status_resp1 = self.driver.transaction_fetchall(cursor, conn, status_sql)
+        cursor.execute(status_sql)
+        status_resp1 = cursor.fetchall()
         status_time_begin = time.time()
-        self.driver.transaction_exec(cursor, conn, "SET profiling=1;")
-        self.driver.transaction_exec(cursor, conn, sql)
-        profile_resp = self.driver.transaction_fetchall(cursor, conn, "show profile;")
+        cursor.execute("SET profiling=1;")
+        cursor.execute(sql)
+        cursor.execute("show profile;")
+        profile_resp = cursor.fetchall()
         status_time_end = time.time()
-        status_resp2 = self.driver.transaction_fetchall(cursor, conn, status_sql)
+        cursor.execute(status_sql)
+        status_resp2 = cursor.fetchall()
         status_time = status_time_end - status_time_begin
 
         # 打包所有结果
@@ -299,8 +303,8 @@ class Probe(object):
         content['endTime'] = dict_profile['end']
         content['qEndTime'] = dict_profile['query end']
         content['commitTime'] = dict_profile['waiting for handler commit']
-        content['rmTmpTime'] = dict_profile['removing tmp table']
-        content['crTmpTime'] = dict_profile['Creating tmp table']
+        content['rmTmpTime'] = 0 #TODO dict_profile['removing tmp table']
+        content['crTmpTime'] = 0 #dict_profile['Creating tmp table']
         content['cTableTime'] = dict_profile['closing tables']
         content['freeTime'] = dict_profile['freeing items']
         content['cleanTime'] = dict_profile['cleaning up']
@@ -314,6 +318,8 @@ class Probe(object):
         self.logger.info("Probe Writer Started!!")
         while alive.value is 1:
             result = queue.get()
+            if result is None:
+                break
             cont_id = result['id']
             cont = result['content']
             filename = config.PROBE_FILE_PREFIX + str(cont_id) + config.PROBE_FILE_SUFFIX
