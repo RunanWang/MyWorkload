@@ -1,4 +1,5 @@
 from TPC.loader.loader import Loader
+from TPC.probe.mysqlprobe import Probe
 from TPC.loader.transaction import Transaction
 from TPC.utils.myLogger import get_cmd_logger
 import TPC.utils.rand as rand
@@ -23,7 +24,7 @@ class Monitor(object):
         self.driver = driver_class()
         self.transaction = Transaction(self.driver)
         self.loader = Loader(self.driver)
-
+        self.probe = Probe(self.driver)
         # 计算QPS的计数器
         self.counter = multiprocessing.Value('i', lock=True)
 
@@ -110,6 +111,7 @@ class Monitor(object):
         return ret
 
     def monitor_process(self):
+        process_list = []
         # TODO: check load
 
         # TODO: do load
@@ -117,29 +119,46 @@ class Monitor(object):
         # transaction process
         transaction_alive = multiprocessing.Value('i', 1)
         transaction_process_num = 2
-        transaction_process_list = []
         start_transaction_time = time.time()
         for i in range(1, transaction_process_num + 1):
-            temp_process = multiprocessing.Process(target=self.transaction_workload, args=(i, transaction_alive, ))
-            transaction_process_list.append(temp_process)
+            temp_process = multiprocessing.Process(target=self.transaction_workload, args=(i, transaction_alive,))
+            process_list.append(temp_process)
             temp_process.start()
+
+        # probe process
+        probe_alive = multiprocessing.Value('i', 1)
+        queue = multiprocessing.Queue()
+        process_w = multiprocessing.Process(target=self.probe.save_result, args=(queue, probe_alive,))
+        process_w.start()
+        process_list.append(process_w)
+        for i in range(len(self.probe.PROBE_SQL_LIST)):
+            self.probe.file_init(i)
+            process = multiprocessing.Process(target=self.probe.workflow_probe, args=(i, queue, probe_alive,))
+            process.start()
+            process_list.append(process)
+            self.logger.info("Probe of Query " + str(i) + " started!")
+            time.sleep(config.PROBE_TIME_BETWEEN_SQL)
 
         # Daemon process
         while True:
             signal = input()
             if signal is 'c':
-                self.logger.info('Get end transaction signal! Please wait.')
+                self.logger.info('Get end signal! Please wait.')
                 transaction_alive.value = 0
+                probe_alive.value = 0
                 break
             else:
                 self.logger.info('Wrong signal. The end signal is c.')
 
-        for item in transaction_process_list:
+        for item in process_list:
             item.join()
         end_transaction_time = time.time()
         total_transaction_time = end_transaction_time - start_transaction_time
         transaction_counter = self.get_counter()
+        queue.close()
         self.logger.info(
             "All Transaction Terminated. During " + str(total_transaction_time) + " of transaction time, " + str(
                 transaction_counter) + " of transactions has been submit. Average " + str(
                 transaction_counter / total_transaction_time) + " TPS.")
+        self.logger.warn("Probe Monitor Terminated!!")
+
