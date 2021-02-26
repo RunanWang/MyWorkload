@@ -303,8 +303,10 @@ class Probe(object):
         content['endTime'] = dict_profile['end']
         content['qEndTime'] = dict_profile['query end']
         content['commitTime'] = dict_profile['waiting for handler commit']
-        content['rmTmpTime'] = 0 #TODO dict_profile['removing tmp table']
-        content['crTmpTime'] = 0 #dict_profile['Creating tmp table']
+        # content['rmTmpTime'] = 0 #dict_profile['removing tmp table']
+        # content['crTmpTime'] = 0 #dict_profile['Creating tmp table']
+        self.check_dict(dict_profile, content, 'removing tmp table', 'rmTmpTime')
+        self.check_dict(dict_profile, content, 'Creating tmp table', 'crTmpTime')
         content['cTableTime'] = dict_profile['closing tables']
         content['freeTime'] = dict_profile['freeing items']
         content['cleanTime'] = dict_profile['cleaning up']
@@ -312,6 +314,13 @@ class Probe(object):
         result['id'] = i
         result['content'] = content
         queue.put(result)
+
+    @staticmethod
+    def check_dict(from_dict, to_dict, from_name, to_name):
+        try:
+            to_dict[to_name] = from_dict[from_name]
+        except KeyError:
+            to_dict[to_name] = 0
 
     # 把result字典保存至num对应的文件/数据库中
     def save_result(self, queue, alive):
